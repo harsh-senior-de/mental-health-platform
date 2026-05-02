@@ -5,10 +5,11 @@ Clarification sessions MUST read this file first and resolve OPEN gaps in priori
 before asking new questions.
 
 **Last Updated**: 2026-05-02
-**Total Gaps**: 14
+**Total Gaps**: 27
 **Resolved**: 14
-**Open Critical**: 0
-**Open Important**: 0
+**Open Critical**: 3
+**Open Important**: 7
+**Open Low**: 3
 
 ---
 
@@ -187,6 +188,171 @@ before implementation. Noted as pre-implementation decision in FR-041.
 
 ---
 
+## CRITICAL Gaps — Session 9 Scan
+
+### GAP-015: Session / Slot Duration
+**Status**: OPEN
+**Session**: 10 (Q1)
+**Impact**: Fundamental to booking, availability, and Zoom integration. The spec creates,
+blocks, and books "time slots" throughout but never defines how long a session is. FR-024,
+FR-025, FR-011, and FR-015c (60-min transcript wait) all depend on slot duration. Is every
+session 60 minutes? Can psychiatrists offer different durations? Affects Zoom meeting
+duration, slot overlap logic, back-to-back booking, and transcript wait window.
+**Affected FRs**: FR-024, FR-025, FR-011, FR-015c
+**Affected Entities**: AvailabilitySlot, Appointment
+
+---
+
+### GAP-016: Multi-Agency Scope
+**Status**: OPEN
+**Session**: 10 (Q2)
+**Impact**: Fundamental business model and matching architecture. Input description says
+"a partner agency" (singular). FR-001h says "the first AgencyAdmin for a new agency"
+(implying multiple agencies). FR-006 matches across "all available psychiatrists" — but
+from what scope? One agency? All agencies? Affects data model, matching logic, and agency
+data isolation.
+**Affected FRs**: FR-006, FR-001h, FR-007
+**Affected Entities**: PsychiatristProfile, AgencyAdmin, MatchScore
+
+---
+
+### GAP-017: Psychiatrist No-Show
+**Status**: OPEN
+**Session**: 10 (Q3)
+**Impact**: High-trust / customer-obsession gap. If a psychiatrist doesn't join a confirmed
+Zoom session (patient paid, patient joined, psychiatrist absent), the spec is silent. No
+detection mechanism, no automatic refund trigger, and no patient compensation path exists.
+The Zoom webhook fires regardless of whether the psychiatrist was present.
+**Affected FRs**: None yet — new FR required
+**Affected Entities**: Appointment, Payment
+
+---
+
+## IMPORTANT Gaps — Session 9 Scan
+
+### GAP-018: Patient No-Show
+**Status**: OPEN
+**Session**: 10 (Q4)
+**Impact**: Booking state machine and psychiatrist compensation. If a patient pays and books
+but never joins the Zoom call, the session is wasted for the psychiatrist. The spec only
+defines the 24h cancellation rule — not what happens when a booking is "completed" with
+no patient participation. Fee is non-refundable (patient didn't cancel), but is the booking
+marked completed? Does the psychiatrist still enter recommendations?
+**Affected FRs**: FR-012, FR-015
+**Affected Entities**: Appointment (status), SessionFeedback
+
+---
+
+### GAP-019: Psychiatrist Ineligibility — Self-Notification
+**Status**: OPEN
+**Session**: 10 (Q5)
+**Impact**: Psychiatrist experience and transparency. FR-039 notifies Agency Admins and
+Platform Admins when a psychiatrist becomes ineligible. The psychiatrist themselves is never
+told. They could continue working with existing patients without knowing they've been
+flagged and removed from the new-patient matching pool.
+**Affected FRs**: FR-039
+**Affected Entities**: PsychiatristProfile (eligibility notification)
+
+---
+
+### GAP-020: Maximum Booking Horizon
+**Status**: OPEN
+**Session**: 11 (Q1)
+**Impact**: UI, performance, and clinical continuity. No upper bound is defined on how far
+ahead psychiatrists can publish slots or patients can book. Can a psychiatrist publish slots
+12 months ahead? Can a patient book 6 months out? Affects calendar display range, slot
+indexing performance, and whether long-horizon bookings make clinical sense.
+**Affected FRs**: FR-024, FR-025, FR-010a
+**Affected Entities**: AvailabilitySlot
+
+---
+
+### GAP-021: Overlapping Slots for Same Psychiatrist
+**Status**: OPEN
+**Session**: 11 (Q2)
+**Impact**: Availability management and double-booking risk. FR-024/FR-025 allow free slot
+creation but contain no rule preventing overlapping slots for the same psychiatrist (e.g.,
+10:00–11:00 and 10:30–11:30). Once one is booked, does the overlapping slot auto-block?
+Or is overlap prevented at creation time? No rule is defined.
+**Affected FRs**: FR-024, FR-025, FR-008
+**Affected Entities**: AvailabilitySlot
+
+---
+
+### GAP-022: Non-Refundable Cancellation UX
+**Status**: OPEN
+**Session**: 11 (Q3)
+**Impact**: Patient trust and dispute prevention. FR-012 covers the within-24h non-refundable
+case mechanically (slot released, no refund) but nothing is said about the patient experience.
+Is there a confirmation step ("You are about to lose your session fee — are you sure?") before
+the cancellation is finalised? What message does the patient see?
+**Affected FRs**: FR-012
+**Affected Entities**: Appointment
+
+---
+
+### GAP-023: Stale Match List — Slot Already Gone
+**Status**: OPEN
+**Session**: 11 (Q4)
+**Impact**: Booking UX and patient frustration. A patient views match results, waits 20
+minutes, then clicks a slot to book. Another patient booked that slot in the interim. The
+slot hold only starts at checkout — not at match-view time. What does the patient see at
+slot-selection when the slot they intended to pick is gone?
+**Affected FRs**: FR-011, FR-007
+**Affected Entities**: AvailabilitySlot, Appointment
+
+---
+
+### GAP-024: Psychiatrist Visibility of Own Rating / Feedback Signal
+**Status**: OPEN
+**Session**: 11 (Q5)
+**Impact**: Psychiatrist experience and quality improvement. FR-038 says raw ratings are
+visible to Platform Admins and Agency Admins only. FR-039 notifies admins on ineligibility
+but the psychiatrist is blind to all feedback. Does a psychiatrist ever see any signal —
+aggregate score, trend, percentile — or are they completely uninformed about their performance?
+**Affected FRs**: FR-038, FR-039
+**Affected Entities**: PsychiatristProfile (rating visibility rules)
+
+---
+
+## LOW PRIORITY Gaps — Session 9 Scan
+
+### GAP-025: WhatsApp Number Verification at Entry
+**Status**: OPEN
+**Session**: 12 (Q1)
+**Impact**: Notification delivery quality. When a patient enters a separate WhatsApp number
+(different from mobile), it's stored as-is with no active verification. An invalid or
+mistyped number results in silent notification failure forever. Should there be a
+verification ping before the number is saved?
+**Affected FRs**: FR-001
+**Affected Entities**: NotificationPreference
+
+---
+
+### GAP-026: Consent Denial at Registration
+**Status**: OPEN
+**Session**: 12 (Q2)
+**Impact**: Onboarding flow branch. FR-005 requires explicit consent before storing sensitive
+health data. The spec has no branch for consent denial — can a patient proceed without
+consenting? Or is consent mandatory to use the platform at all? This determines whether
+there is a "blocked" state at registration.
+**Affected FRs**: FR-005
+**Affected Entities**: Patient (consent status)
+
+---
+
+### GAP-027: GST Invoice Sequential Numbering
+**Status**: OPEN
+**Session**: 12 (Q3)
+**Impact**: Legal compliance. GST law in India requires invoices to carry sequential invoice
+numbers (not just a booking reference). FR-041 lists required invoice fields but omits a
+sequential invoice number series — this is a legal requirement under GST rules for B2C
+supplies.
+**Affected FRs**: FR-041
+**Affected Entities**: Payment (invoice number field)
+
+---
+
 ## DEFERRED Gaps (address in planning phase, not spec)
 
 - **Zoom waiting room**: Is it enabled by default? Can psychiatrists control entry?
@@ -220,3 +386,16 @@ before implementation. Noted as pre-implementation decision in FR-041.
 | GAP-012 | RESOLVED | Session 8 Q2 | "Refund initiated — 5–7 business days" message; all refund FRs updated |
 | GAP-013 | RESOLVED | Session 8 Q3 | Editable intake via FR-004a; psychiatrist notified; edit history retained |
 | GAP-014 | RESOLVED | Session 8 Q3 | FR-041 added; GSTIN ownership deferred to plan (CA confirmation needed) |
+| GAP-015 | OPEN | Session 10 Q1 | — |
+| GAP-016 | OPEN | Session 10 Q2 | — |
+| GAP-017 | OPEN | Session 10 Q3 | — |
+| GAP-018 | OPEN | Session 10 Q4 | — |
+| GAP-019 | OPEN | Session 10 Q5 | — |
+| GAP-020 | OPEN | Session 11 Q1 | — |
+| GAP-021 | OPEN | Session 11 Q2 | — |
+| GAP-022 | OPEN | Session 11 Q3 | — |
+| GAP-023 | OPEN | Session 11 Q4 | — |
+| GAP-024 | OPEN | Session 11 Q5 | — |
+| GAP-025 | OPEN | Session 12 Q1 | — |
+| GAP-026 | OPEN | Session 12 Q2 | — |
+| GAP-027 | OPEN | Session 12 Q3 | — |
