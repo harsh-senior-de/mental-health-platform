@@ -13,7 +13,47 @@
 - Q: Who controls and updates a psychiatrist's available time slots on the platform? → A: Both the agency admin and each psychiatrist. Agency admins can create, update, and block slots for any psychiatrist on the platform. Psychiatrists can manage their own slots directly. All changes take effect immediately for new bookings.
 - Q: When and how does the patient pay for a session? → A: Patient pays on the platform at booking time via Razorpay. The slot is held temporarily during checkout but confirmed only after payment succeeds. If payment fails the slot is released. Cancellations made ≥24 hours before the session receive a full refund via Razorpay; cancellations within 24 hours are non-refundable.
 - Q: What happens when the matching engine finds no strong match for a patient? → A: The system always shows the best available psychiatrists regardless of match score. When scores fall below a defined threshold, the list is shown with a visible "closest available" indicator so the patient understands these are not ideal matches. The patient can still book any of them.
-- Q: How long is patient data retained, and what happens on a deletion request? → A: Patient data is retained for 7 years from the date of last platform activity, then automatically purged. On a deletion request, all PII (name, contact, payment details) is deleted immediately. Clinical records (intake responses, transcripts, care recommendations) are anonymised — identifiers replaced with a pseudonymous ID — and retained for audit and legal purposes. Deletion requests are processed within 72 hours. The platform creates a Zoom meeting via the Zoom API when a booking is confirmed and includes the join link in the confirmation. After the session, Zoom sends a webhook with the cloud recording and auto-transcript to the platform. The transcript is used to generate a draft care recommendation that the psychiatrist reviews and approves before it updates the patient profile.
+- Q: How long is patient data retained, and what happens on a deletion request? → A: Patient data is retained for 7 years from the date of last platform activity, then automatically purged. On a deletion request, all PII (name, contact, payment details) is deleted immediately. Clinical records (intake responses, transcripts, care recommendations) are anonymised — identifiers replaced with a pseudonymous ID — and retained for audit and legal purposes. Deletion requests are processed within 72 hours.
+
+### Session 2026-05-02
+
+- Q: How do returning patients log in after account creation? → A: OTP on every login — no password. Patient enters their mobile number, receives an OTP via SMS, and is logged in. No password is set or stored.
+- Q: Can a patient have more than one active psychiatrist at the same time? → A: Superseded — see Session 2026-05-02 GAP-001 entry. The "active relationship" concept has been removed entirely in favour of a booking-driven access model.
+- Q: What is the expected initial user scale and uptime requirement? → A: Up to 500 concurrent users at launch. 99.5% uptime target (~3.6 hours downtime per month). System must be architected to scale to 10× (5,000 concurrent users) without a structural rewrite.
+- Q: What happens when a psychiatrist cancels a confirmed appointment? → A: A full Razorpay refund is always issued to the patient regardless of how close to the session the cancellation happens. The patient is notified via SMS and WhatsApp (if enabled) with a direct link to rebook. The slot is released back to availability.
+- Q: What is the platform type and how are notifications delivered? → A: Web application only — no mobile app.
+- Q: What happens when a session ends but Zoom delivers no transcript? → A: The psychiatrist is notified within the platform that no transcript was received and is prompted to enter recommendations manually. The failure is logged in the audit trail. No blocking or retry — manual entry via FR-015b serves as the complete fallback.
+- Q: Is there a separate internal platform operator role, and what can they access? → A: Yes — a Platform Admin role for the platform's own operations team. Platform Admins have access to system health dashboards (deletion job queue, payment reconciliation flags, Zoom transcript failures, WhatsApp delivery failures, audit logs). They have zero access to patient clinical data (intake, transcripts, recommendations). They can trigger manual refunds and perform account-level actions (deactivate accounts, resolve reconciliation flags). This is the admin for the platform operator's service — distinct from the agency's AgencyAdmin.
+- Q: What happens if Razorpay's webhook fails to arrive after a patient is charged? → A: Three-path confirmation strategy with a customer-first guarantee. Path 1 (primary): after payment, Razorpay returns a cryptographically signed response to the browser; the backend verifies the HMAC-SHA256 signature immediately — if valid, booking is confirmed in real-time without waiting for a webhook. Path 2 (backup): webhook fires asynchronously for cases where the browser crashed or network dropped after payment. Path 3 (safety net): a scheduled reconciliation job runs every 15 minutes, queries Razorpay for all platform orders in a non-terminal state older than 10 minutes, and resolves them — PAID triggers booking completion, FAILED/EXPIRED releases the slot. Customer protection guarantee: if payment is confirmed as succeeded by any path but booking cannot be completed for any reason, an immediate automatic refund is issued. The patient is notified via SMS and WhatsApp. Customer money is never held without a confirmed booking.
+- Q: Can a psychiatrist read the full raw Zoom transcript text for their assigned patients, or only the structured approved recommendations? → A: Own sessions only (Option C).
+- Q: When a patient requests a new OTP while the previous one has not yet expired, what happens to the old OTP? → A: Immediately invalidated (Option A). Issuing a new OTP cancels the previous one regardless of its remaining validity window. Only the most recently issued OTP is ever valid at any point in time.
+- Q: How is MFA implemented for psychiatrists, agency admins, and platform admins — TOTP, SMS OTP, or optional? → A: TOTP via authenticator app (Option A), mandatory for all non-patient roles. During account activation (first login), psychiatrists, agency admins, and platform admins MUST set up a TOTP authenticator (Google Authenticator, Authy, or equivalent). Every subsequent login requires email + password followed by a valid TOTP code. MFA is not optional for these roles — it is enforced at the platform level.
+- Q: What does "reschedule" mean mechanically — a dedicated flow mutating the booking, or a guided cancel-then-rebook? → A: Guided cancel-then-rebook (Option B). "Reschedule" is a UX shortcut that cancels the current booking applying standard refund rules (FR-012), then immediately routes the patient to the slot-selection screen with the same psychiatrist pre-selected. No separate rescheduling state machine exists. The cancelled appointment is marked with status cancelled-by-patient (rescheduled) in the patient's history to distinguish it from a pure cancellation.
+- Q: If the Zoom API call fails at booking confirmation time (after payment is collected), what should happen? → A: Retry then cancel (modified Option B). On booking confirmation, the platform attempts to create a Zoom meeting via the API. If it fails, the platform retries up to 3 times. If all retries fail: cancel the booking, issue an immediate full Razorpay refund, notify the patient via SMS and WhatsApp (if enabled) explaining the failure and that their money has been returned, notify the psychiatrist via in-platform notification, and log the failure as a measurable operational metric. No manual link fallback — if Zoom creation cannot complete automatically, the booking does not proceed.
+- Q: Should the intake questionnaire be editable and visible to patients after completion? → A: Yes. Patients can view and edit their intake responses at any time from their profile. When a patient edits their intake, their psychiatrist (any psychiatrist with an active access window) is notified in-platform. Edit history is retained for clinical continuity. Specific questions are provided by clinical advisors and are out of scope for this spec.
+- Q: How should post-session feedback work, and how do ratings affect psychiatrist eligibility and matching? → A: Feedback prompt appears immediately in the web app after session completion is detected (via Zoom webhook). Patient rates the session 1–5 and answers structured qualitative dimensions. Raw ratings are never shown to patients — they see a percentile ranking (Top 5%, Top 10%, etc.) on the match list. Raw ratings are visible to Platform Admins and Agency Admins only. Ratings are a weighted factor in the matching algorithm. Eligibility rules (configurable in PlatformConfiguration): ≥5 sessions with avg rating < 2.0 → ineligible for new patient bookings; ≥10 sessions with avg rating < 3.0 → ineligible. Existing confirmed bookings with ineligible psychiatrists are honoured. Weekly patient effectiveness check-ins deferred to v2.
+- Q: Who creates AgencyAdmin and PlatformAdmin accounts, and can there be multiple AgencyAdmins per agency? → A: Platform Admin creates all non-patient accounts (Option B). Platform Admin creates all PlatformAdmin accounts and the first AgencyAdmin for each agency. Multiple AgencyAdmins per agency are permitted — additional AgencyAdmins can be created by an existing AgencyAdmin for that agency or by a Platform Admin. Psychiatrist accounts are created by any AgencyAdmin of the same agency.
+- Q: What password policy applies to non-patient roles? → A: Minimum 12 characters with at least one uppercase letter, one number, and one special character (Option B). Policy stored in PlatformConfiguration and editable by Platform Admins.
+- Q: What is the default maximum number of Tier 3 care reminder notifications per day? → A: Default cap of 3 per day (Option B). Platform default is 3 Tier 3 WhatsApp notifications per day. Patients can raise or lower this cap from their notification preferences. Cap value stored in PlatformConfiguration and editable by Platform Admins. Tier 2 booking reminders and OTPs do not count toward this cap.
+- Q: When a booking is placed close to the session time, which appointment reminders fire? → A: Three reminders total (48h, 2h, 15min before session). Only reminders still in the future at the time of booking confirmation are scheduled — past windows are skipped entirely. Booking placed 6h before: 2h and 15min reminders fire. Booking placed 30min before: only 15min fires. Booking placed 10min before: no reminders fire. All reminder windows stored in PlatformConfiguration and editable by Platform Admins.
+- Q: What happens when a psychiatrist or admin enters an incorrect password repeatedly? → A: Same lockout as patient OTP (Option A). After 3 consecutive failed password attempts, the account is locked for 15 minutes. The remaining lockout time MUST be displayed. Parameters stored in PlatformConfiguration and editable by Platform Admins.
+- Q: Who sets each psychiatrist's session fee, and can one psychiatrist have multiple rates? → A: Agency sets the fee per psychiatrist (Option B). Each psychiatrist has exactly one fixed session fee set by the agency admin on the psychiatrist's profile — no variable rates by session type, time, or any other factor. The fee displayed at booking is locked into the Payment record at the moment the booking is confirmed; subsequent fee changes by the agency do not affect existing confirmed bookings.
+- Q: How does a non-patient user recover TOTP access when they lose their authenticator device? → A: Admin-mediated reset (Option B). The user contacts a Platform Admin who verifies their identity via out-of-band confirmation, then resets the TOTP enrollment from the Platform Admin portal. On next login the user must re-enroll TOTP before accessing the platform. Every TOTP reset is logged as an immutable audit event recording the admin who performed it, the timestamp, and the account affected.
+- Q: What can a patient export and how is it delivered? → A: Async package delivery (Option B). Patient requests a full data export from their profile settings. The platform prepares the package asynchronously and delivers a secure time-limited download link via WhatsApp (if enabled) and SMS within 72 hours. The export includes all data the patient owns: intake responses, care recommendations, appointment history, and notification preferences. Raw session transcripts are excluded — those belong to the clinical record, not the patient's portable data. The download link expires after 48 hours.
+- Q: Whose Zoom account is used to create session meetings? → A: One platform-owned Zoom Business account (Option A). All meetings are created under the platform's single Zoom account. Patients and psychiatrists join as external participants via the generated meeting link. No per-psychiatrist OAuth or sub-accounts. All transcript webhooks are received on this single account.
+- Q: How do follow-up bookings work, and what is the psychiatrist access model for patient data? → A: GAP-001 full resolution. (1) Booking model — Urban Company pattern, no "active relationship" concept. The booking screen shows a "Previously seen" section listing all psychiatrists the patient has ever booked with, sorted by most recent, for direct one-tap rebooking. "Find new match" is always visible alongside it and runs the full matching flow. No constraint on booking multiple psychiatrists simultaneously. (2) Access model — strictly per-pair for raw transcripts: a psychiatrist can only read transcripts from sessions they personally conducted. Structured care recommendations (medications, activities, follow-up dates) from all psychiatrists are visible to any psychiatrist who has a booking with the patient within the last 3 months (configurable). Intake questionnaire responses are also visible to any such psychiatrist. (3) Access expiry — a psychiatrist's access to a patient's profile and transcripts automatically expires 3 months after the last completed session with no new booking. The clock resets on each new booking. (4) All platform time-based values (access expiry, OTP duration, session timeout, slot hold, etc.) are stored in a PlatformConfiguration entity editable by Platform Admins — no hardcoded thresholds anywhere in the system.
+- Q: How long is the raw Zoom session transcript retained after the psychiatrist reviews the draft recommendation? → A: The raw transcript is retained for 7 years alongside other clinical records (Option B), subject to the same anonymisation pipeline when a patient deletion job runs. Only the pseudonymous ID replaces patient identifiers; the transcript text itself is retained for audit and clinical continuity purposes.
+- Q: What happens when a psychiatrist is deactivated mid-relationship with active patients and confirmed bookings? → A: Immediate hard deactivation (Option A). All upcoming confirmed bookings for that psychiatrist are cancelled immediately. A full Razorpay refund is issued for each cancelled booking. Each affected patient is notified via SMS and WhatsApp (if enabled) with the cancellation reason provided by the admin at the time of deactivation, plus a direct link to the matching flow to rebook with a new psychiatrist.
+- Q: What happens to a patient account stuck in incomplete-intake status indefinitely? → A: Send one WhatsApp nudge (if number provided) or SMS after 48 hours of inactivity reminding them to complete intake. If the account remains incomplete after 30 days of no login, it is automatically and permanently deleted along with all associated data.
+- Q: What are the OTP expiry and lockout parameters? → A: OTP expires after 5 minutes. After 3 consecutive failed attempts the patient is locked out for 15 minutes before they can request a new OTP.
+- Q: How long before an authenticated web session expires? → A: 30-minute idle timeout; 8-hour absolute maximum regardless of activity. Applies to all user roles. On expiry the user is redirected to login with a clear message.
+- Q: How is duplicate booking prevented if a patient submits the confirm button twice? → A: The confirm button is disabled immediately on first click (UI-level). A server-side idempotency key tied to the Razorpay order ID ensures that even if the request reaches the server twice, only one charge is processed and one booking is created.
+- Q: When a patient has no upcoming confirmed bookings, can they immediately book any psychiatrist without any prior action? → A: Yes, fully open. No upcoming bookings — including patients who have never booked — means no restriction of any kind. The patient proceeds directly to the "Previously seen" or "Find new match" flow with no prerequisite steps.
+- Q: Should the intake questionnaire be editable by patients after completion? → A: Yes. Patients can view and edit their intake responses at any time from their profile. Psychiatrists with an active access window are notified in-platform when edits are made. Edit history is retained for clinical continuity.
+- Q: How should post-session feedback and psychiatrist ratings work? → A: Feedback prompt appears immediately in the web app after session completion (via Zoom webhook). Patient rates 1–5 and answers structured qualitative dimensions. Raw ratings are visible to Platform Admins and Agency Admins only. Patients see percentile rankings (Top 5%, Top 10%, etc.). Ratings are a weighted factor in matching. Eligibility thresholds: ≥5 sessions avg < 2.0 → ineligible; ≥10 sessions avg < 3.0 → ineligible. Existing confirmed bookings with ineligible psychiatrists are honoured. Unrated psychiatrists shown as "New" on match list.
+- Q: What refund timeline message is shown to patients when a refund is triggered? → A: "Refund initiated — expect it within 5–7 business days." All refund notification paths updated to state the refund has been initiated with explicit 5–7 business day arrival timeline.
+- Q: Must the platform generate GST-compliant tax invoices per session? → A: Yes — FR-041 added. Platform generates a GST invoice per confirmed paid booking containing booking ref, session date/time, psychiatrist name, fee, GST amount and rate, and GSTIN. Delivered to patient within 24 hours of payment. GSTIN ownership (platform vs. agency) is a pre-implementation decision requiring CA confirmation — deferred to planning phase.
+- Q: How should all data deletion scenarios be handled — on-demand, abandoned accounts, and 7-year expiry? → A: A single centralised Data Lifecycle Service handles all three via a typed job queue. All jobs execute the same two-phase pipeline: Phase 1 erases PII, Phase 2 anonymises clinical records. Job types are: On-Demand (72h SLA, patient confirmed), Abandoned (24h SLA, no confirmation), Expiry (24h SLA, daily scan). Every job produces a PII-free audit entry retained permanently. An internal dashboard shows job status for platform admins. All users access the platform via browser. Notifications are split into three tiers: (1) OTP/authentication — SMS to mobile number, always required; (2) Booking confirmations — SMS to mobile number, plus WhatsApp if enabled; (3) Care reminders (medication, activity, follow-up nudges) — WhatsApp only. During registration, after entering their mobile number, patients see a single checkbox: "Use this number for WhatsApp notifications too?" (checked by default, same UX pattern as "billing = shipping address"). If unchecked, they may enter a different WhatsApp number or leave it blank to opt out. WhatsApp notifications can be toggled on/off at any time from the patient's profile settings (default: on).
 
 ---
 
@@ -120,18 +160,21 @@ correctly timed, personalized notifications matching their care plan and stated 
 
 **Acceptance Scenarios**:
 
-1. **Given** a patient with a medication recommendation on their profile, **When** their
-   preferred reminder time arrives, **Then** they receive a push/SMS notification with
-   the medication name, dosage, and a single-tap confirmation.
+1. **Given** a patient with a medication recommendation, a resolved WhatsApp number, and
+   WhatsApp notifications toggled on, **When** their preferred reminder time arrives,
+   **Then** they receive a WhatsApp message with the medication name, dosage, and a prompt
+   to confirm they have taken it.
 2. **Given** a patient whose notification preferences have changed (e.g., prefers reminders
    at 8 AM not 7 AM), **When** they update their preferences, **Then** all future
    notifications shift to the new schedule within 24 hours.
 3. **Given** a patient with an activity recommendation (e.g., "30-minute walk"), **When**
    the scheduled time arrives, **Then** they receive a contextual nudge, not a generic
    broadcast message.
-4. **Given** a patient who has an upcoming follow-up appointment, **When** 48 hours and
-   2 hours before the appointment, **Then** they receive a reminder with the psychiatrist's
-   name, time, and a link to join or prepare.
+4. **Given** a patient with an upcoming appointment, **When** 48 hours, 2 hours, and
+   15 minutes before the session (for whichever windows are still in the future at booking
+   time), **Then** they receive an SMS booking reminder to their mobile number, and
+   additionally a WhatsApp message with the Zoom join link if WhatsApp notifications are
+   enabled on their profile.
 5. **Given** a patient who has opted out of a notification category (e.g., activity nudges),
    **When** the system schedules notifications, **Then** that category is suppressed and
    only opted-in categories are sent.
@@ -140,13 +183,17 @@ correctly timed, personalized notifications matching their care plan and stated 
 
 ### Edge Cases
 
-- What happens when a patient abandons the intake questionnaire mid-way and never returns?
-- How does the system handle a psychiatrist becoming unavailable after a booking is confirmed?
+- Patient abandons intake and never returns: one WhatsApp/SMS nudge sent after 48 hours of inactivity; account and all data permanently deleted after 30 days of no login (resolved: FR-032).
+- Psychiatrist cancels a confirmed booking: full refund always issued, slot released, patient notified via SMS + WhatsApp with a rebook link (resolved: FR-012a).
 - When no psychiatrist scores above the match threshold: the system shows the best available with a "closest available" label — the patient is never dead-ended (resolved: FR-010).
-- What if a patient has no recommendations yet — are notifications silenced or do they
-  receive onboarding-type nudges?
-- What happens when the notification delivery channel (push or SMS) fails?
-- How are duplicate bookings prevented if a patient taps "confirm" twice?
+- Patient with no care plan yet: no care-related notifications sent; only appointment booking confirmations and reminders are sent via WhatsApp if a WhatsApp number is registered (resolved: FR-023).
+- Patient with no WhatsApp number: no notifications of any kind. The platform informs the patient at registration and in their profile settings that notifications require a WhatsApp number (resolved: FR-001, FR-019).
+- WhatsApp delivery failure: failure is logged in the audit trail and surfaced in the patient's profile; no retry or fallback channel (resolved: FR-022).
+- Double-tap confirm: the confirm button is disabled on first click; a server-side idempotency key per checkout session ensures only one Razorpay charge and one booking are ever created (resolved: FR-011c).
+- Psychiatrist deactivated with active patients: all upcoming confirmed bookings are immediately cancelled, a full refund is issued for each, and affected patients are notified with the admin-supplied cancellation reason and a rebook link (resolved: FR-012b).
+- Patient wants to book a previously seen psychiatrist: shown directly in "Previously seen" section; taps name → slot picker → payment; no matching flow re-run (resolved: FR-007, FR-018).
+- Patient's access window expires (no session in 3 months): psychiatrist automatically loses access to patient profile and transcripts; patient can rebook at any time which restores access (resolved: FR-014, FR-018a).
+- Zoom meeting creation fails after payment collected: platform retries up to 3 times; if all fail, booking is cancelled, full refund issued, patient and psychiatrist notified, failure logged as operational metric (resolved: FR-011e).
 
 ---
 
@@ -156,8 +203,66 @@ correctly timed, personalized notifications matching their care plan and stated 
 
 **Patient Onboarding & Intake**
 
-- **FR-001**: The system MUST allow patients to register using a mobile number or email address
-  with OTP-based verification.
+- **FR-001**: The system MUST allow patients to register and log in using their mobile number
+  with OTP-based verification only — no password is set or stored at any point. Every login
+  requires the patient to enter their mobile number and verify a fresh OTP received via SMS.
+  During registration, immediately after mobile number entry, the system MUST display a
+  checkbox pre-ticked by default — "Use this number for WhatsApp notifications too?" If
+  unchecked, the patient may enter a different WhatsApp number or leave it blank to opt out.
+  The resolved WhatsApp number is stored on the patient's profile and can be updated at any
+  time from their profile settings.
+- **FR-001a**: OTPs MUST expire after 5 minutes from the time of issue. A patient who enters
+  an incorrect OTP 3 consecutive times MUST be locked out for 15 minutes before a new OTP
+  can be requested. The lockout duration and remaining time MUST be displayed to the patient.
+  If a patient requests a new OTP before the current one has expired, the previous OTP MUST
+  be immediately and irrevocably invalidated — only the most recently issued OTP is valid
+  at any point in time. The 5-minute expiry window resets from the moment the new OTP is
+  issued.
+- **FR-001c**: Authenticated web sessions MUST expire after 30 minutes of user inactivity,
+  or after 8 hours of total session duration — whichever comes first. This applies to all
+  user roles (patients, psychiatrists, agency admins). On expiry, the user MUST be
+  redirected to the login page with a clear message that their session has ended.
+- **FR-001b**: Psychiatrists, agency admins, and platform admins MUST log in using email
+  address and password followed by a TOTP code from an authenticator app (Google
+  Authenticator, Authy, or equivalent). MFA is mandatory and cannot be disabled for these
+  roles. Accounts are created by the platform (not self-registered) and activated via a
+  one-time email link. During account activation, the user MUST set up their TOTP
+  authenticator by scanning a QR code — activation is not complete until TOTP setup is
+  confirmed with a valid code. Every subsequent login requires all three factors in sequence:
+  email address → password → TOTP code. No OTP via SMS applies to these roles.
+- **FR-001d**: Non-patient users (psychiatrists, agency admins, platform admins) MUST be
+  able to reset their password via a time-limited link sent to their registered email address.
+  The reset link MUST expire after 30 minutes. After a password reset, the active session
+  MUST be invalidated and the user MUST log in again with their new password and TOTP code.
+  TOTP is not reset during a password reset — the same authenticator app setup remains valid.
+- **FR-001h**: Non-patient account provisioning follows a strict hierarchy:
+  (1) PlatformAdmin accounts are created exclusively by existing Platform Admins via the
+  Platform Admin portal.
+  (2) The first AgencyAdmin account for a new agency is created by a Platform Admin.
+  Additional AgencyAdmin accounts for an existing agency may be created by any existing
+  AgencyAdmin of that agency or by a Platform Admin.
+  (3) Psychiatrist accounts are created by any AgencyAdmin of the same agency.
+  All account creation triggers a one-time activation email containing a time-limited
+  setup link (expiry per PlatformConfiguration, default: 24 hours) through which the
+  user sets their password and completes TOTP enrollment. Accounts cannot be used until
+  activation is complete.
+- **FR-001g**: Passwords for non-patient roles MUST meet the following minimum requirements:
+  at least 12 characters, containing at least one uppercase letter, one numeric digit, and
+  one special character. The platform MUST enforce these requirements at account activation,
+  password reset, and any password change. Password strength rules are stored in
+  PlatformConfiguration and are editable by Platform Admins.
+- **FR-001f**: After 3 consecutive failed password attempts, a non-patient user account
+  (psychiatrist, agency admin, platform admin) MUST be locked for 15 minutes. During
+  lockout, no login attempts are accepted regardless of correctness. The remaining lockout
+  duration MUST be displayed to the user. Lockout attempt threshold and duration are stored
+  in PlatformConfiguration and are editable by Platform Admins.
+- **FR-001e**: If a non-patient user loses access to their TOTP authenticator device, their
+  TOTP enrollment MUST be reset exclusively by a Platform Admin via the Platform Admin portal
+  (FR-033). The Platform Admin MUST verify the user's identity via out-of-band confirmation
+  before performing the reset. On next login after a TOTP reset, the user MUST re-enroll
+  a new TOTP authenticator before accessing any platform functionality. Every TOTP reset
+  MUST generate an immutable audit log entry recording: the account reset, the Platform Admin
+  who performed it, and the timestamp.
 - **FR-002**: The system MUST present a structured intake questionnaire covering: presenting
   symptoms, symptom severity, mental health history, current medications, lifestyle factors,
   and psychiatrist preferences (gender, language). All sessions are conducted via Zoom video
@@ -166,11 +271,23 @@ correctly timed, personalized notifications matching their care plan and stated 
   who exits mid-way can resume from the same point on next login.
 - **FR-004**: The system MUST create a structured patient profile upon intake completion,
   storing all responses in a queryable, normalized format.
+- **FR-004a**: Patients MUST be able to view their complete intake questionnaire responses
+  at any time from their profile. Patients MUST be able to edit any intake response after
+  initial submission. Each edit MUST be timestamped and the full edit history retained for
+  clinical continuity. When a patient edits their intake, the platform MUST send an
+  in-platform notification to all psychiatrists who currently have an active access window
+  for that patient (per FR-018a), informing them that the patient's intake has been updated.
 - **FR-005**: The system MUST require explicit consent from the patient before storing any
   sensitive health data, with a clear explanation of what is stored and why.
 
 **Availability Management**
 
+- **FR-023a**: Each psychiatrist MUST have exactly one session fee (in INR) set by the
+  agency admin on their profile. A psychiatrist cannot have more than one fee — no variable
+  pricing by session type, time slot, or any other factor. The fee is displayed to the
+  patient on the match list and booking screen. The fee in effect at the moment a booking
+  is confirmed MUST be recorded in the Payment record and is immutable — subsequent agency
+  fee changes do not affect any already-confirmed bookings.
 - **FR-024**: Agency admins MUST be able to create, update, and block time slots for any
   psychiatrist on the platform. Changes MUST take effect immediately for new bookings.
 - **FR-025**: Each psychiatrist MUST be able to create, update, and block their own time
@@ -186,9 +303,18 @@ correctly timed, personalized notifications matching their care plan and stated 
 
 - **FR-006**: The system MUST score and rank all available psychiatrists for a given patient
   using a configurable algorithm that factors in: symptom type, severity level, patient
-  preferences (language, gender), and psychiatrist availability.
-- **FR-007**: The system MUST present the top matches (maximum 5) to the patient with
-  name, photo, specialization, languages, session fee, and earliest available slot.
+  preferences (language, gender), psychiatrist availability, and psychiatrist rating
+  percentile (FR-038). Psychiatrists who are ineligible per FR-039 MUST be excluded from
+  results entirely. All factor weights are stored in PlatformConfiguration.
+- **FR-007**: The booking screen MUST show two sections:
+  (1) "Previously seen" — all psychiatrists the patient has ever had a confirmed booking
+  with, sorted by most recent session date, showing name, photo, specialization, and
+  earliest available slot. Tapping any entry goes directly to slot selection and payment
+  without re-running the matching algorithm.
+  (2) "Find new match" — always visible alongside the "Previously seen" section. Triggers
+  the matching algorithm and presents up to 5 ranked psychiatrists with name, photo,
+  specialization, languages, session fee, and earliest available slot. For first-time
+  patients (no previous bookings), only this section is shown.
   All sessions are Zoom video calls.
 - **FR-008**: The system MUST prevent a psychiatrist from being booked by more than one
   patient for the same time slot (idempotent booking).
@@ -207,20 +333,97 @@ correctly timed, personalized notifications matching their care plan and stated 
 - **FR-011**: The system MUST allow patients to select a time slot and proceed to payment.
   The slot MUST be temporarily held (reserved) for a maximum of 10 minutes during checkout
   to prevent it from being booked by another patient simultaneously.
-- **FR-011a**: Payment MUST be collected via Razorpay before the booking is confirmed.
-  On payment success, the platform MUST: (1) mark the slot as booked, (2) automatically
-  create a Zoom meeting via the Zoom API, and (3) send a confirmation with the Zoom join
-  link to both patient and psychiatrist.
-- **FR-011b**: If payment fails or the 10-minute hold expires, the slot MUST be released
-  back to available inventory and the patient shown an appropriate message.
+- **FR-011a**: Payment MUST be collected via Razorpay. Booking confirmation uses a
+  three-path strategy — whichever path fires first completes the booking:
+
+  - **Path 1 — Signature verification (primary, real-time)**: After the patient pays,
+    Razorpay returns a payment_id, order_id, and HMAC-SHA256 signature to the browser.
+    The platform backend MUST verify this signature cryptographically using the Razorpay
+    secret key. If valid, the booking is confirmed immediately without waiting for a
+    webhook. This path handles the normal case and completes in seconds.
+
+  - **Path 2 — Webhook (async backup)**: The platform MUST also listen for Razorpay
+    payment webhooks as a backup for cases where the browser crashed or network dropped
+    after payment was processed. A confirmed webhook event triggers the same booking
+    completion pipeline as Path 1.
+
+  - **Path 3 — Reconciliation job (safety net)**: A scheduled job MUST run every
+    15 minutes, querying Razorpay's API for all platform orders in a non-terminal state
+    older than 10 minutes. For each: if Razorpay reports PAID, complete the booking
+    (or refund if slot is no longer available); if FAILED or EXPIRED, release the slot.
+
+- **FR-011b**: If a payment is confirmed as succeeded by any path but the booking cannot
+  be completed for any reason (e.g., slot just became unavailable), the platform MUST
+  immediately and automatically issue a full refund via Razorpay's API. The patient MUST
+  be notified via SMS and WhatsApp (if enabled) that the booking could not be confirmed
+  and their refund has been initiated and will reach their account within 5–7 business
+  days. Customer money is never held without a confirmed booking — no exception.
+
+- **FR-011c**: If no payment confirmation arrives via any path within the 10-minute hold
+  window (genuine non-payment — abandoned checkout, declined card), the slot MUST be
+  released. No refund is issued as no successful charge exists.
+
+- **FR-011d**: The booking confirmation button MUST be disabled immediately on first click
+  to prevent duplicate submissions. The system MUST use a server-side idempotency key
+  scoped to each Razorpay order so that if the same confirmation request reaches the
+  server more than once, exactly one booking and one charge are created.
+- **FR-011e**: Upon booking confirmation (triggered by any payment path in FR-011a), the
+  platform MUST immediately attempt to create a Zoom meeting via the Zoom API using the
+  platform's single Zoom Business account credentials. If the
+  initial call fails, the platform MUST retry up to 3 times before treating the creation
+  as failed. If all retries are exhausted without a successful Zoom meeting creation, the
+  platform MUST: (1) cancel the booking, (2) issue an immediate full Razorpay refund,
+  (3) notify the patient via SMS and WhatsApp (if enabled) with a clear explanation that
+  the booking could not be completed due to a technical issue and that their refund has been
+  initiated and will reach their account within 5–7 business days, (4) send an in-platform
+  notification to the psychiatrist that the booking
+  attempt failed, and (5) log the failure with timestamp, booking reference, and Zoom error
+  details in the audit trail as a trackable operational metric. No manual link fallback is
+  permitted — if Zoom meeting creation cannot complete automatically, the booking does not
+  proceed under any circumstance.
 - **FR-012**: The system MUST allow patients to cancel or reschedule an appointment.
   Cancellations made ≥24 hours before the session MUST trigger a full refund via Razorpay
-  and release the slot. Cancellations within 24 hours are non-refundable; the slot is
-  still released for rebooking by other patients.
-- **FR-013**: Psychiatrists MUST be able to view the intake summary and full patient profile
-  before a scheduled session.
-- **FR-014**: Psychiatrists MUST only be able to access the profiles of patients assigned to
-  them — no lateral access to other patients' records.
+  and release the slot. The patient MUST be notified via SMS and WhatsApp (if enabled) that
+  their refund has been initiated and will reach their account within 5–7 business days.
+  Cancellations within 24 hours are non-refundable; the slot is still released for rebooking
+  by other patients. Rescheduling is a guided cancel-then-rebook flow — there is no separate
+  rescheduling state machine. When a patient selects "Reschedule", the platform cancels the
+  existing booking applying the standard refund rules above, marks the appointment as
+  cancelled-by-patient (rescheduled) in the patient's history, and immediately routes the
+  patient to the slot-selection screen with the same psychiatrist pre-selected. The patient
+  then books a new slot as a fresh appointment.
+- **FR-012a**: Psychiatrists and agency admins MUST be able to cancel a confirmed appointment
+  at any time. A psychiatrist-initiated cancellation MUST always trigger: (1) a full Razorpay
+  refund to the patient regardless of timing, (2) release of the slot back to availability,
+  and (3) an SMS notification to the patient's mobile number plus a WhatsApp message (if
+  enabled) containing an apology message, a statement that their refund has been initiated
+  and will reach their account within 5–7 business days, and a direct link to rebook with
+  any available psychiatrist.
+- **FR-012b**: When a psychiatrist account is deactivated by a Platform Admin or Agency Admin,
+  the system MUST immediately: (1) cancel all upcoming confirmed bookings linked to that
+  psychiatrist, (2) issue a full Razorpay refund for each cancelled booking, and (3) notify
+  each affected patient via SMS and WhatsApp (if enabled) with the cancellation reason entered
+  by the admin at the time of deactivation, a statement that their refund has been initiated
+  and will reach their account within 5–7 business days, and a direct link to the matching
+  flow to rebook with a new psychiatrist. The deactivated psychiatrist's historical session records and
+  approved care recommendations remain part of the patient's care history and are accessible
+  to any new psychiatrist the patient matches with.
+- **FR-013**: Psychiatrists MUST be able to view the following for any patient they have
+  a booking with (within the platform-configured access window per FR-018a):
+  (1) The patient's intake questionnaire responses.
+  (2) Structured care recommendations from all psychiatrists who have treated the patient
+  (medications, activities, follow-up dates, free-text notes) — regardless of which
+  psychiatrist authored them. This is required for clinical safety (avoiding conflicting
+  prescriptions).
+  (3) Full raw Zoom transcript text for sessions they personally conducted only.
+  Raw transcripts from sessions conducted by other psychiatrists MUST NOT be accessible
+  under any circumstance — this preserves the confidentiality of prior therapeutic
+  relationships.
+- **FR-014**: Psychiatrists MUST only be able to access patient data for patients with whom
+  they have a booking within the platform-configured access window (FR-018a). Access to all
+  other patients' data is strictly forbidden — no lateral access. Once the access window
+  expires (no new booking within the configured period), all patient data becomes inaccessible
+  to that psychiatrist until a new booking is created.
 
 **Long-Term Patient Profile**
 
@@ -230,43 +433,243 @@ correctly timed, personalized notifications matching their care plan and stated 
 - **FR-015a**: The psychiatrist MUST explicitly review and approve (or edit) the draft before
   any transcript-derived information is written to the patient's care record. No automated
   update to the patient profile is permitted without psychiatrist approval.
+- **FR-015d**: The raw session transcript MUST be retained for 7 years from the date of the
+  associated session, stored alongside other clinical records. On execution of a Data
+  Lifecycle Service deletion job, the transcript MUST undergo the same Phase 2 anonymisation
+  as all other clinical records — patient identifiers replaced with a pseudonymous ID and
+  the transcript text retained. Transcripts are never deleted before the 7-year period
+  regardless of whether the patient ends their relationship, switches psychiatrists, or
+  submits a deletion request (in which case anonymisation, not erasure, applies to the
+  transcript text).
 - **FR-015b**: Psychiatrists MUST also be able to add recommendations manually, independent
   of the transcript, including: medication name, dosage, frequency, activity type, and
   follow-up date.
+- **FR-015c**: If no transcript is received from Zoom within 60 minutes of a session's
+  scheduled end time, the system MUST: (1) display a notice to the psychiatrist on the
+  patient's record stating the transcript was not received, (2) prompt them to enter
+  recommendations manually via FR-015b, and (3) log the transcript failure with timestamp
+  in the audit trail. No retry is attempted; manual entry is the sole fallback.
 - **FR-016**: The system MUST append all approved recommendations to the patient's permanent
   record, timestamped and attributed to the psychiatrist who approved them.
 - **FR-017**: Patients MUST be able to view their complete care history: all past sessions,
   recommendations, and their current active care plan.
-- **FR-018**: The system MUST maintain long-term continuity — a new psychiatrist onboarded
-  to the patient MUST see the full prior session history.
+- **FR-018**: The platform MUST use a booking-driven access model — there is no "active
+  relationship" concept. A patient may book any psychiatrist at any time: either from the
+  "Previously seen" section (all psychiatrists they have ever booked with, sorted by most
+  recent session) or from the "Find new match" flow (full matching algorithm). There is no
+  constraint preventing a patient from booking multiple psychiatrists simultaneously. When
+  a patient has no upcoming confirmed bookings — including patients who have never booked at
+  all — there is no prerequisite or required action before booking; they proceed directly to
+  the matching or "Previously seen" flow with no restrictions.
+- **FR-018a**: Psychiatrist access to patient data is governed by the following rules:
+  (1) Raw session transcripts are per-pair only — a psychiatrist can read only transcripts
+  from sessions they personally conducted with that patient; transcripts from sessions
+  with other psychiatrists are never visible.
+  (2) Structured care recommendations (medication details, activity prescriptions, follow-up
+  dates, free-text notes) authored by any psychiatrist are visible to any psychiatrist who
+  has had a booking with the patient within the platform-configured access window (default:
+  3 months from last completed session).
+  (3) The patient's intake questionnaire responses are visible to any psychiatrist who has
+  had a booking within the same access window.
+  (4) A psychiatrist's access to a patient's profile, recommendations, and intake
+  automatically expires when no booking exists within the access window. The window resets
+  on each new confirmed booking. All access window durations are stored in PlatformConfiguration
+  and are editable by Platform Admins without a code change.
 
-**Data Retention & Deletion**
+**Post-Session Feedback & Psychiatrist Ratings**
 
-- **FR-028**: Patient data MUST be retained for 7 years from the date of last platform
-  activity. After 7 years of inactivity the system MUST automatically and permanently
-  purge all records associated with that patient.
-- **FR-029**: On receipt of a patient account deletion request, the system MUST within
-  72 hours: (1) permanently delete all PII — name, contact details, payment information,
-  device tokens; (2) anonymise all clinical records — intake responses, session transcripts,
-  care recommendations, and audit logs — by replacing patient identifiers with a
-  pseudonymous ID that cannot be re-linked to the original patient.
-- **FR-030**: Anonymised clinical records MUST be retained after deletion for a minimum of
-  7 years from the date of the associated session, for audit and legal compliance purposes.
-- **FR-031**: The system MUST provide patients with a self-service deletion request option
-  within the platform. Patients MUST receive a confirmation when the request is complete.
+- **FR-037**: After each completed session, the platform MUST detect session completion
+  via the Zoom webhook and immediately surface a feedback prompt to the patient within
+  the web application on their next page load or active session. The prompt MUST display
+  immediately — it cannot be deferred indefinitely. The patient MUST be able to skip it
+  once; a skipped prompt MUST reappear on the next login until submitted or explicitly
+  dismissed a second time (at which point it is recorded as skipped). The feedback form
+  MUST collect: a 1–5 star rating and responses to structured qualitative dimensions
+  (specific questions defined by clinical advisors, out of scope for this spec). Submitted
+  feedback is linked to the specific Appointment record.
+
+- **FR-038**: The platform MUST maintain an aggregated rating profile per psychiatrist,
+  computed from all SessionFeedback records linked to their appointments. The aggregated
+  rating (average score, session count, rating distribution) MUST be visible to Platform
+  Admins and Agency Admins in their respective portals. Raw ratings and scores MUST NOT
+  be shown to patients under any circumstance. Patients MUST instead see a percentile
+  ranking for each psychiatrist (e.g., "Top 5%", "Top 10%") computed relative to all
+  active psychiatrists on the platform. The percentile is displayed on the match list and
+  the "Previously seen" section.
+
+- **FR-039**: The platform MUST enforce configurable eligibility rules that automatically
+  remove psychiatrists from the new-patient matching pool when their rating falls below
+  defined thresholds. Default rules (all stored in PlatformConfiguration and editable by
+  Platform Admins without a code change):
+  - Rule 1: ≥5 completed sessions with average rating < 2.0 → ineligible for new patients
+  - Rule 2: ≥10 completed sessions with average rating < 3.0 → ineligible for new patients
+  An ineligible psychiatrist MUST NOT appear in matching results or the "Previously seen"
+  section for patients who have not previously booked them. Existing confirmed bookings
+  with an ineligible psychiatrist MUST be honoured and completed normally. Agency Admins
+  and Platform Admins MUST be notified when a psychiatrist becomes ineligible.
+
+- **FR-040**: Psychiatrist ratings MUST be a weighted factor in the matching algorithm
+  (FR-006). The rating weight is configurable in PlatformConfiguration alongside other
+  matching weights. Psychiatrists with no completed sessions (no rating yet) MUST still
+  appear in matching results and MUST be clearly indicated as "New" to the patient.
+
+**Payments & Tax Compliance**
+
+- **FR-041**: The platform MUST generate a GST-compliant tax invoice for every confirmed
+  and paid booking. Indian GST law requires a tax invoice to be issued for all taxable
+  services (mental health consultations are a taxable service). The invoice MUST include
+  at minimum: booking reference, session date and time, psychiatrist name, session fee,
+  applicable GST amount and rate, and the GSTIN of the issuing entity. The invoice MUST
+  be delivered to the patient (via a link in the booking confirmation SMS/WhatsApp message
+  or available for download from their booking history) within 24 hours of payment
+  confirmation.
+  **Pre-implementation decision required**: The GSTIN on the invoice (platform company vs.
+  agency) depends on the legal service-provider structure — whether the platform is the
+  merchant of record or an Electronic Commerce Operator acting on behalf of the agency.
+  This MUST be confirmed with a chartered accountant before implementation begins. The FR
+  is recorded now to ensure the requirement is not missed; the legal structure decision
+  will be captured in the implementation plan.
+
+**Data Lifecycle & Deletion**
+
+All data deletion — regardless of trigger — MUST be handled by a single centralised
+Data Lifecycle Service. This service maintains a deletion job queue and processes every
+deletion request through the same pipeline, ensuring consistent behaviour, auditability,
+and compliance across all deletion scenarios.
+
+- **FR-028**: The Data Lifecycle Service MUST support three distinct deletion trigger types,
+  each enqueued as a typed job:
+
+  - **Type 1 — On-Demand**: Triggered when a patient submits a self-service deletion
+    request from their profile settings. SLA: processed within 72 hours of request.
+    Patient receives a WhatsApp/SMS confirmation when complete.
+
+  - **Type 2 — Abandoned Account Cleanup**: Triggered automatically when a patient account
+    has been in incomplete-intake status with no login for 30 consecutive days. A single
+    reminder notification is sent via WhatsApp (if available) or SMS at the 48-hour
+    inactivity mark. If still incomplete at 30 days, a Type 2 job is enqueued. SLA:
+    processed within 24 hours of trigger. No patient confirmation is sent (account
+    is incomplete; no meaningful care data exists).
+
+  - **Type 3 — Data Expiry**: Triggered automatically when a patient's last platform
+    activity date is older than 7 years. A scheduled daily scan identifies eligible
+    accounts and enqueues Type 3 jobs. SLA: processed within 24 hours of trigger.
+
+- **FR-029**: Regardless of deletion type, the Data Lifecycle Service MUST execute the
+  same two-phase deletion pipeline for every job:
+
+  - **Phase 1 — PII Erasure**: Permanently and irreversibly delete all personally
+    identifiable information: name, mobile number, WhatsApp number, email, payment
+    details, device tokens, and any raw identifiers in logs or analytics.
+
+  - **Phase 2 — Clinical Record Anonymisation**: Replace all patient identifiers in
+    clinical records — intake responses, session transcripts, care recommendations,
+    and audit log entries — with a pseudonymous ID that is not stored or derivable
+    from any remaining data. Anonymised records are retained for 7 years from the
+    date of the associated session for legal and audit purposes, then permanently purged.
+
+- **FR-030**: Every deletion job MUST produce a structured audit entry recording: job type
+  (On-Demand / Abandoned / Expiry), pseudonymous patient ID, timestamp of enqueue,
+  timestamp of completion, data categories erased, and data categories anonymised.
+  This audit entry MUST itself contain no PII and MUST be retained permanently.
+
+- **FR-031**: The platform MUST expose a self-service deletion request option in the
+  patient's profile settings, clearly labelled with the consequences (PII deleted,
+  clinical records anonymised and retained for compliance). On submission, the patient
+  MUST receive an immediate on-screen acknowledgement and a WhatsApp/SMS confirmation
+  when the job completes within the 72-hour SLA.
+
+- **FR-033**: The platform MUST provide a Platform Admin portal accessible only to the
+  platform operator's internal staff (PlatformAdmin role). Platform Admins MUST be able to:
+  (1) view the deletion job dashboard (pending, processing, completed, SLA-breached jobs
+  by type — no PII visible); (2) view payment reconciliation flags (unresolved Razorpay
+  orders, failed auto-refunds); (3) view Zoom transcript failure logs; (4) view WhatsApp
+  and SMS delivery failure logs; (5) manually trigger a Razorpay refund for flagged
+  payments; (6) deactivate patient or psychiatrist accounts where required;
+  (7) reset TOTP enrollment for any non-patient user who has lost their authenticator
+  device — each reset is audit-logged per FR-001e;
+  (8) create PlatformAdmin accounts and the first AgencyAdmin account for a new agency
+  per FR-001h.
+- **FR-034**: Platform Admins MUST have zero access to patient clinical data — intake
+  responses, session transcripts, care recommendations, and session notes are not visible
+  in the Platform Admin portal under any circumstance.
+- **FR-035**: All platform time-based thresholds and configurable limits MUST be stored in
+  a PlatformConfiguration store editable by Platform Admins without a code change or
+  deployment. The following values MUST be configurable:
+  - Psychiatrist access window after last session (default: 3 months)
+  - OTP expiry duration (default: 5 minutes)
+  - OTP max failed attempts before lockout (default: 3)
+  - OTP lockout duration (default: 15 minutes)
+  - Web session idle timeout (default: 30 minutes)
+  - Web session absolute timeout (default: 8 hours)
+  - Slot hold duration during checkout (default: 10 minutes)
+  - Zoom transcript wait window before fallback (default: 60 minutes)
+  - Razorpay reconciliation job interval (default: 15 minutes)
+  - Abandoned account inactivity nudge delay (default: 48 hours)
+  - Abandoned account auto-delete threshold (default: 30 days)
+  - Patient data retention period (default: 7 years)
+  - Password reset link expiry (default: 30 minutes)
+  - Non-patient failed password attempt threshold before lockout (default: 3)
+  - Non-patient password lockout duration (default: 15 minutes)
+  - Appointment reminder intervals before session (default: 48 hours, 2 hours, 15 minutes)
+  - Default daily Tier 3 notification cap per patient (default: 3)
+  - Non-patient password minimum length (default: 12)
+  - Non-patient password complexity rules (default: uppercase + number + special character required)
+  - Account activation link expiry (default: 24 hours)
+  - Psychiatrist rating eligibility rules (default: ≥5 sessions + avg < 2.0 → ineligible; ≥10 sessions + avg < 3.0 → ineligible)
+  - Matching algorithm factor weights (rating percentile, symptom match, availability, preferences)
+  - Rating percentile band labels (default: Top 5%, Top 10%, Top 25%, Top 50%)
+  - Match result list size (default: 5)
+  - "Closest available" match score threshold (default: configurable per deployment)
+- **FR-036**: The platform MUST provide a self-service data export option in the patient's
+  profile settings, satisfying the constitution's data portability requirement and DPDPA 2023.
+  On request: (1) the platform enqueues an async export job; (2) the patient receives an
+  immediate on-screen acknowledgement; (3) within 72 hours the platform delivers a secure,
+  time-limited download link via WhatsApp (if enabled) and SMS. The export package MUST
+  include: intake questionnaire responses, all care recommendations, appointment history,
+  and notification preferences. Raw session transcripts are excluded from patient export —
+  they are retained as clinical records subject to the Data Lifecycle Service (FR-028).
+  The download link MUST expire after 48 hours. Export jobs MUST be visible in the Platform
+  Admin deletion dashboard (FR-033) for audit purposes.
+- **FR-032**: The Data Lifecycle Service MUST expose its job queue status to the Platform
+  Admin portal (FR-033), showing pending jobs by type, average processing time, jobs
+  completed in the last 30 days, and any jobs that exceeded their SLA. No patient PII
+  is visible in this view.
 
 **Personalized Notifications**
 
-- **FR-019**: The system MUST send personalized notifications via push notification and SMS
-  based on each patient's active care plan and stated preferences.
-- **FR-020**: Notification timing MUST be driven by the individual patient's preference
-  settings — no platform-wide broadcast schedules.
-- **FR-021**: Patients MUST be able to opt in or out of each notification category
-  (medication reminders, activity nudges, appointment reminders) independently.
-- **FR-022**: The notification system MUST retry delivery via an alternative channel if the
-  primary channel fails (e.g., fall back from push to SMS).
-- **FR-023**: The system MUST NOT send notifications to patients who have no active care
-  plan, except for appointment reminders when a booking exists.
+- **FR-019**: The notification system operates across three distinct tiers with separate
+  delivery channels:
+  - **Tier 1 — Authentication (OTP)**: Delivered via SMS to the patient's registered mobile
+    number. Always required; not configurable.
+  - **Tier 2 — Booking confirmations and reminders**: Delivered via SMS to the patient's
+    mobile number. Additionally sent via WhatsApp if the patient has a resolved WhatsApp
+    number and WhatsApp notifications are toggled on. Appointment reminders are sent at
+    three intervals before the session: 48 hours, 2 hours, and 15 minutes. Only reminders
+    whose scheduled time is still in the future at the moment of booking confirmation are
+    queued — windows that have already passed are skipped entirely. All reminder intervals
+    are stored in PlatformConfiguration and editable by Platform Admins.
+  - **Tier 3 — Care reminders** (medication reminders, activity nudges, follow-up prompts):
+    Delivered via WhatsApp only. Sent exclusively if the patient has a resolved WhatsApp
+    number and WhatsApp notifications are toggled on. Never sent via SMS.
+- **FR-020**: Care reminder timing (Tier 3) MUST be driven entirely by each patient's
+  individual preference settings — no platform-wide schedules. The platform MUST enforce
+  a daily cap on Tier 3 notifications per patient (default: 3 per day). Patients MUST be
+  able to raise or lower this cap from their notification preferences page. The default cap
+  is stored in PlatformConfiguration and is editable by Platform Admins. Tier 2 booking
+  reminders and Tier 1 OTPs do not count toward the daily cap.
+- **FR-021**: Patients MUST be able to toggle WhatsApp notifications on or off globally
+  from their profile settings page (default: on). When toggled off, all Tier 2 WhatsApp
+  messages and all Tier 3 care reminders are suppressed. SMS booking confirmations and
+  OTPs are unaffected by this toggle.
+- **FR-021a**: Patients MUST also be able to opt in or out of each Tier 3 care reminder
+  category (medication reminders, activity nudges, appointment follow-up prompts)
+  independently, as long as WhatsApp notifications are globally toggled on.
+- **FR-022**: If a WhatsApp message fails to deliver, the system MUST log the failure
+  with timestamp and error reason in the audit trail. There is no SMS fallback for
+  WhatsApp failures. Failures are surfaced in the patient's profile for manual follow-up.
+- **FR-023**: Tier 3 care reminders MUST NOT be sent to patients who have no active care
+  plan. Tier 2 booking confirmations are sent regardless of care plan status.
 
 ### Key Entities
 
@@ -274,29 +677,63 @@ correctly timed, personalized notifications matching their care plan and stated 
   notification preferences, and care history.
 - **IntakeQuestionnaire**: Structured set of questions grouped into sections; responses
   stored per patient, supports partial completion.
-- **AgencyAdmin**: A staff member of the partner agency with permission to manage all
-  psychiatrist profiles and availability slots. Cannot access patient clinical data.
+- **PlatformAdmin**: The platform operator's internal operations staff. Has access to
+  system health dashboards (deletion job queue, payment reconciliation flags, Zoom
+  transcript failures, WhatsApp delivery failures, audit logs) and can trigger manual
+  refunds and account-level actions. Has zero access to patient clinical data.
+- **AgencyAdmin**: A staff member of the partner agency. Multiple AgencyAdmins per agency
+  are permitted. Has permission to manage psychiatrist profiles, availability slots, and
+  session fees for their agency, and to create additional AgencyAdmin and Psychiatrist
+  accounts within their agency. Cannot access patient clinical data.
 - **PsychiatristProfile**: Agency-supplied profile: credentials, specializations, languages,
-  and assigned patient list.
+  session fee (a single fixed INR amount set by the agency admin — one fee per psychiatrist,
+  immutable on existing bookings when updated), aggregated rating (average score, session
+  count, rating distribution — visible to admins only), percentile rank (computed relative
+  to all active psychiatrists — shown to patients), and eligibility status (eligible /
+  ineligible per FR-039 rules).
 - **AvailabilitySlot**: A defined time window on a psychiatrist's calendar with status
   (open, booked, blocked). Manageable by both the psychiatrist and agency admin.
 - **SessionTranscript**: Full text transcript of a Zoom session received via webhook;
   linked to an Appointment; used to generate a draft CareRecommendation pending
-  psychiatrist approval.
+  psychiatrist approval. Retained for 7 years from session date; anonymised (not deleted)
+  when a patient deletion job runs.
 - **MatchScore**: Computed ranking of a psychiatrist for a given patient; includes
   contributing factors and weights used.
 - **Appointment**: A confirmed booking linking one patient to one psychiatrist at a
-  specific date/time; has status (scheduled, completed, cancelled, rescheduled).
+  specific date/time; has status (scheduled, completed, cancelled-by-patient,
+  cancelled-by-patient-rescheduled, cancelled-by-psychiatrist, cancelled-by-deactivation)
+  and records the Zoom meeting ID and join URL. The
+  cancelled-by-patient-rescheduled status distinguishes a cancellation initiated via the
+  "Reschedule" flow from a pure cancellation, so the patient's history reflects the intent.
+- **SessionFeedback**: Patient-submitted feedback linked to a specific Appointment; contains
+  a 1–5 star rating and structured qualitative responses; submitted immediately after session
+  completion; visible to Platform Admins and Agency Admins only — never to patients or the
+  rated psychiatrist directly.
 - **CareRecommendation**: A post-session record authored by a psychiatrist: medication
   details, activity prescription, follow-up date, free-text notes.
-- **PatientProfile**: Aggregated view of a patient's full history: intake, appointments,
-  care recommendations, and active care plan.
-- **NotificationPreference**: Per-patient, per-category settings: channel (push/SMS),
-  preferred times, opt-in/out status.
+- **PatientProfile**: Aggregated view of a patient's full history: intake responses, all
+  appointments across all psychiatrists (past and upcoming), care recommendations from all
+  psychiatrists, and current active care plan. No "active psychiatrist" reference — access
+  is determined dynamically by booking recency per FR-018a.
+- **NotificationPreference**: Per-patient settings: resolved WhatsApp number (nullable —
+  same as mobile if checkbox was ticked, different number, or null if opted out);
+  global WhatsApp toggle (boolean, default true); preferred delivery times per Tier 3
+  category; per-category opt-in/out for medication reminders, activity nudges, and
+  follow-up prompts; daily Tier 3 cap (integer, default pulled from PlatformConfiguration,
+  patient-adjustable).
 - **NotificationEvent**: A single scheduled or delivered notification instance with
   delivery status and retry history.
-- **Payment**: Linked to an Appointment; records amount, currency (INR), Razorpay order
-  and payment IDs, status (pending, succeeded, failed, refunded), and timestamps.
+- **Payment**: Linked to an Appointment; records amount charged (INR, locked at booking
+  confirmation from PsychiatristProfile.fee at that moment), currency (INR), Razorpay
+  order and payment IDs, status (pending, succeeded, failed, refunded), and timestamps.
+- **PlatformConfiguration**: A singleton store of all platform-wide configurable thresholds
+  and defaults (access window, OTP settings, timeouts, retention periods, etc.). Editable
+  by Platform Admins only. Every value has a documented default. Changes take effect
+  immediately without redeployment. All changes are audit-logged.
+- **DataDeletionJob**: A queued deletion task with type (On-Demand / Abandoned / Expiry),
+  pseudonymous patient reference, enqueue timestamp, status (pending, processing, completed,
+  failed), completion timestamp, and a summary of data categories erased and anonymised.
+  Contains no PII.
 
 ---
 
@@ -327,6 +764,21 @@ correctly timed, personalized notifications matching their care plan and stated 
   clinical records anonymised — within 72 hours of the request being submitted.
 - **SC-012**: No patient PII is accessible in the system after a deletion request has
   been completed, verifiable via audit log review.
+- **SC-013**: The platform supports up to 500 concurrent users without performance
+  degradation — all response time targets (SC-001 through SC-007) hold under full load.
+- **SC-014**: Platform availability is at or above 99.5% measured monthly (~3.6 hours
+  maximum downtime per month), excluding scheduled maintenance windows communicated
+  at least 24 hours in advance.
+- **SC-015**: The system architecture supports scaling to 5,000 concurrent users without
+  requiring structural changes to the data model or service boundaries.
+- **SC-016**: Zero instances of a patient being charged via Razorpay without either a
+  confirmed booking or an automatic full refund being issued within 15 minutes.
+- **SC-017**: In the normal payment flow (Path 1), booking confirmation is displayed to
+  the patient within 5 seconds of payment completion on Razorpay.
+- **SC-018**: Zoom meeting creation failures (all retries exhausted) are logged as
+  operational metrics and are reviewable by Platform Admins in the admin portal. The
+  Zoom failure rate (FR-011e failures as a percentage of total confirmed bookings) MUST
+  be trackable and visible in the platform operations dashboard.
 
 ---
 
@@ -341,23 +793,100 @@ correctly timed, personalized notifications matching their care plan and stated 
   the Zoom API on booking confirmation and receives the session transcript via Zoom webhook
   after the session ends. The transcript is used to generate a draft recommendation;
   the psychiatrist must approve before anything is written to the patient record.
-- Zoom cloud recording and auto-transcription must be enabled on the Zoom account used
-  by the platform. Transcript quality is subject to Zoom's transcription accuracy.
+- The platform operates a single Zoom Business account. All session meetings are created
+  under this account via the Zoom API. Patients and psychiatrists join as external
+  participants via the generated link — no Zoom account is required of either party.
+  All transcript webhooks are received on this single account. Zoom cloud recording and
+  auto-transcription must be enabled on this account. Transcript quality is subject to
+  Zoom's transcription accuracy.
 - The platform targets Indian users; regulatory compliance (Mental Healthcare Act 2017,
   DPDPA 2023) is mandatory for all data handling decisions.
-- SMS delivery will be handled via an Indian SMS gateway (e.g., Twilio India or MSG91);
-  push notifications via a cloud messaging service.
-- Patients are assumed to have a smartphone with internet access; offline-first support is
-  out of scope for v1.
+- The platform is a web application. No mobile app exists in v1. All users — patients,
+  psychiatrists, and agency admins — access the platform via web browser.
+- Notifications use three tiers: (1) OTP via SMS to mobile number; (2) booking confirmations
+  via SMS to mobile number + WhatsApp if enabled; (3) care reminders via WhatsApp only.
+  During registration, patients tick a checkbox "Use this number for WhatsApp notifications
+  too?" (pre-ticked). If unchecked they may enter a different WhatsApp number or opt out.
+  WhatsApp notifications can be toggled on/off globally from the profile settings page
+  (default: on). WhatsApp delivery failures are logged; no SMS fallback exists for
+  WhatsApp failures.
+- Patients are assumed to have internet access and a WhatsApp account. Offline-first support
+  and native mobile app are out of scope for v1.
 - Payment is collected at booking time via Razorpay (INR). The slot is held for up to
-  10 minutes during checkout and confirmed only after payment succeeds. Cancellations
-  ≥24 hours before the session receive a full Razorpay refund; within 24 hours are
-  non-refundable. Razorpay webhook events are used to confirm payment status server-side.
+  10 minutes during checkout. Booking confirmation uses a three-path strategy: (1) real-time
+  HMAC-SHA256 signature verification (primary), (2) Razorpay webhook (async backup),
+  (3) a 15-minute reconciliation job (safety net). If payment is confirmed but booking
+  cannot be completed, an automatic full refund is issued immediately — customer money is
+  never held without a confirmed booking. Cancellations ≥24 hours before the session
+  receive a full refund; within 24 hours are non-refundable.
 - The intake questionnaire content (specific questions and scoring rubrics) is provided by
   clinical advisors; this spec covers the delivery mechanism and data storage, not question
   design.
 - Multi-language support (Hindi and regional languages) is planned but the v1 questionnaire
   and UI will be English-first; i18n hooks must be in place from day one.
-- Patient data retention is 7 years from last activity per Indian medical record standards
-  and DPDPA 2023. PII is deleted within 72 hours of a deletion request; anonymised clinical
-  records are retained for the full 7-year window for audit and legal purposes.
+- All data deletion — on-demand, abandoned account cleanup, and 7-year expiry — is handled
+  by a single centralised Data Lifecycle Service using a typed job queue. All jobs run the
+  same two-phase pipeline: PII erasure then clinical record anonymisation. Anonymised records
+  are retained for 7 years from session date per DPDPA 2023 and Indian medical record law.
+- Initial scale target is 500 concurrent users with 99.5% monthly uptime. The system must
+  be designed to scale to 5,000 concurrent users without structural rewrites.
+
+---
+
+## Future Readiness
+
+These capabilities are intentionally out of scope for v1 but MUST be considered in
+architectural decisions today so they can be added without structural rewrites.
+
+### AI-Powered WhatsApp Companion (v2)
+
+Transform the WhatsApp notification channel into a two-way AI-powered care companion.
+Patients would be able to initiate conversations directly in WhatsApp and receive
+contextually aware responses grounded in their personal care data.
+
+**What it enables**:
+- Medication adherence confirmation ("Did you take your 10mg Escitalopram this morning?")
+- Between-session support using psychiatrist-approved coping strategies from care records
+- Activity check-ins tied to the patient's specific prescription (e.g., "How was your
+  30-minute walk today?")
+- Passive crisis signal detection with automatic escalation to crisis resources
+
+**Why deferred to v2**:
+- Core booking, matching, and care record features must be stable before this layer is added
+- Requires extensive safety testing and guardrails before deployment to vulnerable users
+- Regulatory grey area under Mental Healthcare Act 2017 for AI-generated health responses
+- Meaningful LLM API cost that is better justified once patient base is established
+
+**What must be designed correctly in v1 to enable v2 without rewrites**:
+- Intake responses, care recommendations, and approved psychiatrist notes MUST be stored
+  in structured, queryable format (already required by FR-004, FR-016)
+- WhatsApp integration MUST use the official Business API (not workarounds) so two-way
+  messaging can be enabled by adding an incoming webhook handler
+- Patient consent model MUST be extensible to cover AI interaction consent in v2
+- The notification preference system MUST be designed as a general-purpose per-patient
+  settings store, not a hardcoded notification-only structure
+
+### Weekly Patient Effectiveness Check-ins (v2)
+
+Periodic structured self-assessment sent to patients weekly via WhatsApp, independent
+of session frequency. Questions track longitudinal progress on dimensions such as anxiety
+level, sleep quality, and mood stability (specific questions defined by clinical advisors).
+
+**What it enables in v2**:
+- Patient progress charts visible to the patient and their psychiatrist
+- AI-surfaced pattern observations to the psychiatrist (e.g., "anxiety scores trending
+  upward over 3 weeks") — observations only, no clinical recommendations
+- Earlier detection of deterioration between sessions
+
+**Why deferred**: Requires stable patient base and sufficient data before AI pattern
+observations are meaningful. Build the core care record and feedback system in v1 first.
+
+**What must be designed correctly in v1**: The NotificationPreference and notification
+delivery infrastructure built for care reminders naturally extends to weekly check-in
+delivery. No structural changes required in v2.
+
+### Multi-Language Support (v2)
+
+Hindi and regional Indian language support for the intake questionnaire and patient-facing
+UI. i18n hooks MUST be in place in all user-visible strings from day one of v1 (already
+required by the constitution's Accessibility principle).
