@@ -52,6 +52,11 @@
 - Q: Should the intake questionnaire be editable by patients after completion? → A: Yes. Patients can view and edit their intake responses at any time from their profile. Psychiatrists with an active access window are notified in-platform when edits are made. Edit history is retained for clinical continuity.
 - Q: How should post-session feedback and psychiatrist ratings work? → A: Feedback prompt appears immediately in the web app after session completion (via Zoom webhook). Patient rates 1–5 and answers structured qualitative dimensions. Raw ratings are visible to Platform Admins and Agency Admins only. Patients see percentile rankings (Top 5%, Top 10%, etc.). Ratings are a weighted factor in matching. Eligibility thresholds: ≥5 sessions avg < 2.0 → ineligible; ≥10 sessions avg < 3.0 → ineligible. Existing confirmed bookings with ineligible psychiatrists are honoured. Unrated psychiatrists shown as "New" on match list.
 - Q: What refund timeline message is shown to patients when a refund is triggered? → A: "Refund initiated — expect it within 5–7 business days." All refund notification paths updated to state the refund has been initiated with explicit 5–7 business day arrival timeline.
+- Q: If an OTP SMS fails to deliver, what should happen? → A: Automatic failover to a backup SMS provider within 30 seconds of primary failure. "Resend OTP" option available after 60 seconds regardless of delivery status. FR-001i added.
+- Q: How does a patient recover their account if they lose access to their registered phone number? → A: V1 — account is inaccessible; patient must create a new account. Clear message on login screen directs them to support. FR-001j added. V2 — admin-mediated recovery with out-of-band identity verification. Patient entity MUST use a UUID as primary key (not mobile number) to enable future number updates without data loss.
+- Q: Should a patient's own submitted SessionFeedback be included in their data export? → A: Yes — patient-authored feedback (rating + qualitative answers) is their personal data and is included in the export under DPDPA 2023. FR-036 updated.
+- Q: When a patient updates notification preferences, do already-queued Tier 3 reminders update immediately? → A: Yes — all pending Tier 3 reminders are cancelled and rescheduled immediately to match new preferences, including same-day reminders. FR-020 and US4 updated.
+- Q: Does the psychiatrist portal show the Zoom join link for upcoming appointments? → A: Yes — both the psychiatrist portal (FR-013a added) and the patient portal (FR-017 updated) MUST prominently display the Zoom join link for each upcoming confirmed appointment.
 - Q: Must the platform generate GST-compliant tax invoices per session? → A: Yes — FR-041 added. Platform generates a GST invoice per confirmed paid booking containing booking ref, session date/time, psychiatrist name, fee, GST amount and rate, and GSTIN. Delivered to patient within 24 hours of payment. GSTIN ownership (platform vs. agency) is a pre-implementation decision requiring CA confirmation — deferred to planning phase.
 - Q: How should all data deletion scenarios be handled — on-demand, abandoned accounts, and 7-year expiry? → A: A single centralised Data Lifecycle Service handles all three via a typed job queue. All jobs execute the same two-phase pipeline: Phase 1 erases PII, Phase 2 anonymises clinical records. Job types are: On-Demand (72h SLA, patient confirmed), Abandoned (24h SLA, no confirmation), Expiry (24h SLA, daily scan). Every job produces a PII-free audit entry retained permanently. An internal dashboard shows job status for platform admins. All users access the platform via browser. Notifications are split into three tiers: (1) OTP/authentication — SMS to mobile number, always required; (2) Booking confirmations — SMS to mobile number, plus WhatsApp if enabled; (3) Care reminders (medication, activity, follow-up nudges) — WhatsApp only. During registration, after entering their mobile number, patients see a single checkbox: "Use this number for WhatsApp notifications too?" (checked by default, same UX pattern as "billing = shipping address"). If unchecked, they may enter a different WhatsApp number or leave it blank to opt out. WhatsApp notifications can be toggled on/off at any time from the patient's profile settings (default: on).
 
@@ -165,8 +170,9 @@ correctly timed, personalized notifications matching their care plan and stated 
    **Then** they receive a WhatsApp message with the medication name, dosage, and a prompt
    to confirm they have taken it.
 2. **Given** a patient whose notification preferences have changed (e.g., prefers reminders
-   at 8 AM not 7 AM), **When** they update their preferences, **Then** all future
-   notifications shift to the new schedule within 24 hours.
+   at 8 AM not 7 AM), **When** they update their preferences, **Then** all pending
+   (not yet delivered) Tier 3 reminders are cancelled and rescheduled immediately to
+   match the new preference — including any queued for the same day.
 3. **Given** a patient with an activity recommendation (e.g., "30-minute walk"), **When**
    the scheduled time arrives, **Then** they receive a contextual nudge, not a generic
    broadcast message.
@@ -218,6 +224,22 @@ correctly timed, personalized notifications matching their care plan and stated 
   be immediately and irrevocably invalidated — only the most recently issued OTP is valid
   at any point in time. The 5-minute expiry window resets from the moment the new OTP is
   issued.
+- **FR-001j**: In v1, a patient's account is bound exclusively to their registered mobile
+  number. If a patient loses access to that number, their account becomes inaccessible —
+  no self-service or admin-mediated account recovery exists in v1. The platform MUST
+  display a clear message on the login screen directing patients who have lost their number
+  to contact support. Support can only advise the patient to create a new account.
+  Admin-mediated mobile number recovery (with out-of-band identity verification) is
+  deferred to v2 — see Future Readiness.
+- **FR-001i**: OTP SMS delivery MUST use a primary SMS provider with automatic failover to a
+  backup SMS provider. If the primary provider fails to deliver within 30 seconds (no delivery
+  acknowledgement received), the platform MUST automatically resend the same OTP via the
+  backup provider. The patient sees a single "Resend OTP" option on the login screen; this
+  option MUST become available after 60 seconds regardless of delivery status, allowing the
+  patient to trigger a fresh OTP if neither provider delivered. Both primary and backup SMS
+  provider integrations MUST be specified and configured before launch; the specific provider
+  choices are a planning-phase decision. All SMS delivery attempts (provider used, timestamp,
+  delivery status) MUST be logged in the audit trail without logging the OTP value itself.
 - **FR-001c**: Authenticated web sessions MUST expire after 30 minutes of user inactivity,
   or after 8 hours of total session duration — whichever comes first. This applies to all
   user roles (patients, psychiatrists, agency admins). On expiry, the user MUST be
@@ -419,6 +441,10 @@ correctly timed, personalized notifications matching their care plan and stated 
   Raw transcripts from sessions conducted by other psychiatrists MUST NOT be accessible
   under any circumstance — this preserves the confidentiality of prior therapeutic
   relationships.
+- **FR-013a**: The psychiatrist portal MUST display an upcoming appointments view listing
+  all confirmed future sessions across all their patients. For each upcoming appointment,
+  the Zoom join link MUST be prominently shown so the psychiatrist can join directly from
+  the platform without needing to locate their confirmation email.
 - **FR-014**: Psychiatrists MUST only be able to access patient data for patients with whom
   they have a booking within the platform-configured access window (FR-018a). Access to all
   other patients' data is strictly forbidden — no lateral access. Once the access window
@@ -452,7 +478,10 @@ correctly timed, personalized notifications matching their care plan and stated 
 - **FR-016**: The system MUST append all approved recommendations to the patient's permanent
   record, timestamped and attributed to the psychiatrist who approved them.
 - **FR-017**: Patients MUST be able to view their complete care history: all past sessions,
-  recommendations, and their current active care plan.
+  recommendations, and their current active care plan. For each upcoming confirmed
+  appointment, the patient's portal MUST prominently display the Zoom join link so the
+  patient can join their session directly from the platform without hunting through
+  confirmation messages.
 - **FR-018**: The platform MUST use a booking-driven access model — there is no "active
   relationship" concept. A patient may book any psychiatrist at any time: either from the
   "Previously seen" section (all psychiatrists they have ever booked with, sorted by most
@@ -627,8 +656,11 @@ and compliance across all deletion scenarios.
   immediate on-screen acknowledgement; (3) within 72 hours the platform delivers a secure,
   time-limited download link via WhatsApp (if enabled) and SMS. The export package MUST
   include: intake questionnaire responses, all care recommendations, appointment history,
-  and notification preferences. Raw session transcripts are excluded from patient export —
-  they are retained as clinical records subject to the Data Lifecycle Service (FR-028).
+  notification preferences, and the patient's own submitted SessionFeedback records
+  (their ratings and qualitative answers per session — the patient authored this data and
+  is entitled to it under DPDPA 2023). Raw session transcripts are excluded from patient
+  export — they are retained as clinical records subject to the Data Lifecycle Service
+  (FR-028).
   The download link MUST expire after 48 hours. Export jobs MUST be visible in the Platform
   Admin deletion dashboard (FR-033) for audit purposes.
 - **FR-032**: The Data Lifecycle Service MUST expose its job queue status to the Platform
@@ -653,9 +685,14 @@ and compliance across all deletion scenarios.
     Delivered via WhatsApp only. Sent exclusively if the patient has a resolved WhatsApp
     number and WhatsApp notifications are toggled on. Never sent via SMS.
 - **FR-020**: Care reminder timing (Tier 3) MUST be driven entirely by each patient's
-  individual preference settings — no platform-wide schedules. The platform MUST enforce
-  a daily cap on Tier 3 notifications per patient (default: 3 per day). Patients MUST be
-  able to raise or lower this cap from their notification preferences page. The default cap
+  individual preference settings — no platform-wide schedules. When a patient updates
+  their Tier 3 reminder preferences (timing, category opt-in/out, or daily cap), the
+  platform MUST immediately cancel all pending (not yet delivered) Tier 3 reminders for
+  that patient and reschedule them according to the new preferences — including reminders
+  already queued for the same day. Changes take effect within minutes of saving. The
+  platform MUST enforce a daily cap on Tier 3 notifications per patient (default: 3 per
+  day). Patients MUST be able to raise or lower this cap from their notification
+  preferences page. The default cap
   is stored in PlatformConfiguration and is editable by Platform Admins. Tier 2 booking
   reminders and Tier 1 OTPs do not count toward the daily cap.
 - **FR-021**: Patients MUST be able to toggle WhatsApp notifications on or off globally
@@ -884,6 +921,23 @@ observations are meaningful. Build the core care record and feedback system in v
 **What must be designed correctly in v1**: The NotificationPreference and notification
 delivery infrastructure built for care reminders naturally extends to weekly check-in
 delivery. No structural changes required in v2.
+
+### Patient Account Recovery — Mobile Number Change (v2)
+
+Admin-mediated account recovery for patients who have lost access to their registered
+mobile number. A Platform Admin verifies the patient's identity via out-of-band
+confirmation (e.g., name, email, last booking reference), then updates the registered
+mobile number via the admin portal. The patient can then log in with the new number and
+receive OTPs normally.
+
+**Why deferred**: PHI access risk requires careful identity verification design before
+self-service or admin-mediated recovery can be safely offered. V1 takes the conservative
+path — account inaccessible on number loss.
+
+**What must be designed correctly in v1**: The Patient entity's mobile number field MUST
+be stored as a mutable field (not used as the primary key) so it can be updated without
+creating a new account or losing care history. Patient identity MUST be anchored to a
+platform-generated UUID, not the mobile number.
 
 ### Multi-Language Support (v2)
 
