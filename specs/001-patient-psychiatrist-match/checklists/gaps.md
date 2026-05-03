@@ -356,61 +356,54 @@ supplies.
 ## CRITICAL Gaps — Research Scan (psychiatry-sessions-india.md)
 
 ### GAP-028: No Session Type Differentiation
-**Status**: OPEN
-**Session**: TBD
-**Impact**: Regulatory compliance + architectural. The spec treats every booking identically.
-Indian telemedicine regulations and clinical practice require at least 6 distinct session
-types with different durations, pricing norms, and mode constraints. Most critically: initial
-consultations MUST be video-only (Telemedicine Practice Guidelines 2020). All other modes
-(audio, text) are permitted only for follow-ups. Current spec has no concept of session type.
-**Affected FRs**: FR-002, FR-007, FR-011, FR-015, FR-024, FR-025
-**Affected Entities**: AvailabilitySlot, Appointment — both need a session_type field
-**Research ref**: Section 2.3 and 6.1 of psychiatry-sessions-india.md
+**Status**: RESOLVED
+**Session**: 10 Q1
+**Answer**: Three session types at v1: Initial Assessment (video-only mandatory, first consult
+on platform), Follow-Up (any mode, all subsequent standard sessions), Crisis/Urgent (video-
+preferred, emergency booking bypassing normal slot selection, only for patients with ≥1 prior
+completed session). FR-042 added; AvailabilitySlot and Appointment entities updated with
+session_type field.
+**FRs Updated**: FR-002 updated, FR-042 added
+**Entities Updated**: AvailabilitySlot (session_type field), Appointment (session_type + mode fields)
 
 ---
 
 ### GAP-029: Consultation Mode (Video / Audio / Text) Not Modelled
-**Status**: OPEN
-**Session**: TBD
-**Impact**: Regulatory compliance + UX. The spec assumes all sessions are Zoom video calls.
-Indian telemedicine guidelines ONLY mandate video for initial consultations and for any
-session where a new medication is prescribed for the first time. Follow-ups may be audio
-or text-based, which is cheaper and more accessible for patients. No mode concept exists
-in the spec — no way to enforce the video-only rule for initial consultations.
-**Affected FRs**: FR-002, FR-011e (Zoom hardcoded for all sessions)
-**Affected Entities**: Appointment (mode field missing), AvailabilitySlot (mode field missing)
-**Research ref**: Section 2.4 and 6.2 of psychiatry-sessions-india.md
+**Status**: RESOLVED
+**Session**: 10 Q2
+**Answer**: V1 — video only (Zoom) for all three session types. No audio-only or text-based
+modes in v1 to avoid complexity. Audio-only (Follow-Up only) and text-based async chat
+deferred to v2 — both added to Future Readiness section with v1 design constraints noted.
+**FRs Updated**: FR-042 simplified (video-only clause); FR-002 reference kept clean
+**Entities Updated**: Appointment entity — consultation_mode field deferred to v2
 
 ---
 
 ### GAP-030: No E-Prescription Workflow
-**Status**: OPEN
-**Session**: TBD
-**Impact**: Regulatory compliance. The spec has "care recommendations" (FR-015, FR-015b)
-but no FR covering a formal e-prescription. Indian telemedicine law requires prescriptions
-to include: MCI registration number, generic drug names in CAPITAL LETTERS, digital
-signature, patient ID verification record, and dose/frequency/duration. This is legally
-distinct from a care recommendation/session note. Without a prescription workflow, the
-platform cannot legally support medication management.
-**Affected FRs**: FR-015, FR-015b — new FR required
-**Affected Entities**: CareRecommendation (prescription is a separate legal document),
-PsychiatristProfile (MCI registration number field missing)
-**Research ref**: Section 3.2 of psychiatry-sessions-india.md
+**Status**: RESOLVED
+**Session**: 10 Q3
+**Answer**: E-prescription tool added. Prescription is a formal legal document distinct
+from CareRecommendation (session notes). Psychiatrist generates it post-session via the
+prescription tool. Mandatory fields auto-populated from PsychiatristProfile (MCI reg number,
+name, qualifications, clinic) and PatientProfile. Drugs stored/displayed in CAPITAL LETTERS.
+Finalisation acts as digital signature. PDF delivered to patient via platform + WhatsApp.
+Retained 7 years as clinical record. MCI registration number added to PsychiatristProfile.
+**FRs Updated**: FR-043 added (e-prescription generation); FR-015b clarified as session
+notes only (distinct from prescription); CareRecommendation entity description updated
+**Entities Updated**: PsychiatristProfile (MCI registration number), new Prescription entity added
 
 ---
 
 ### GAP-031: List C Drug Prohibition Not Enforced
-**Status**: OPEN
-**Session**: TBD
-**Impact**: Legal compliance + patient safety. Alprazolam (Alprax), diazepam, lorazepam,
-zolpidem, and methylphenidate cannot be prescribed via telemedicine under the Telepsychiatry
-Operational Guidelines 2020. Alprazolam is one of the most commonly prescribed anxiolytics
-in India — a psychiatrist treating anxiety patients via this platform will routinely want
-to prescribe something the platform legally cannot facilitate. The spec has no mechanism
-to warn or block List C prescriptions.
-**Affected FRs**: FR-015b — new constraint required
-**Affected Entities**: CareRecommendation (drug list validation)
-**Research ref**: Section 3.1 of psychiatry-sessions-india.md
+**Status**: RESOLVED
+**Session**: 10 Q3
+**Answer**: Hard block enforced. List C drugs (alprazolam, diazepam, lorazepam, nitrazepam,
+chlordiazepoxide, zolpidem, methylphenidate, modafinil, phenobarbitone, depot antipsychotics)
+cannot be added to a prescription — blocked immediately with a named warning and a suggestion
+to refer for in-person consultation. No override possible. Blocked attempts are audit-logged.
+List C drug list stored in PlatformConfiguration, editable by Platform Admins.
+**FRs Updated**: FR-044 added (List C hard block)
+**Entities Updated**: PlatformConfiguration (List C drug list added)
 
 ---
 
@@ -524,10 +517,10 @@ cannot engage directly). Not modelled in the spec.
 | GAP-025 | OPEN | Session 12 Q1 | — |
 | GAP-026 | OPEN | Session 12 Q2 | — |
 | GAP-027 | OPEN | Session 12 Q3 | — |
-| GAP-028 | OPEN | TBD | — |
-| GAP-029 | OPEN | TBD | — |
-| GAP-030 | OPEN | TBD | — |
-| GAP-031 | OPEN | TBD | — |
+| GAP-028 | RESOLVED | Session 10 Q1 | Three types: Initial Assessment (video-only), Follow-Up (any mode), Crisis/Urgent (video-preferred); FR-042 added |
+| GAP-029 | RESOLVED | Session 10 Q2 | Video only in v1; audio-only + text-based modes deferred to v2 Future Readiness |
+| GAP-030 | RESOLVED | Session 10 Q3 | E-prescription tool added; FR-043; MCI reg number on PsychiatristProfile; Prescription entity added |
+| GAP-031 | RESOLVED | Session 10 Q3 | List C hard block; FR-044; List C list in PlatformConfiguration |
 | GAP-032 | OPEN | TBD | — |
 | GAP-033 | OPEN | TBD | — |
 | GAP-034 | OPEN | TBD | — |
