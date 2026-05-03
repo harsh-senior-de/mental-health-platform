@@ -64,11 +64,16 @@
 
 - Q: Which session types should the platform support at v1 launch? → A: Three types — Initial Assessment, Follow-Up, and Crisis/Urgent. Initial Assessment is mandatory for any patient's first consultation with any psychiatrist on the platform and MUST be conducted via video only (Telemedicine Practice Guidelines 2020). Follow-Up covers all subsequent standard consultations; any consultation mode is permitted. Crisis/Urgent is an emergency booking that bypasses normal slot selection, is video-preferred, and is available to patients who have already completed at least one Initial Assessment. FR-042 added; AvailabilitySlot and Appointment entities updated with session_type field.
 - Q: Which consultation modes should the platform support for Follow-Up sessions at v1? → A: Video only — all three session types (Initial Assessment, Follow-Up, Crisis/Urgent) use Zoom video exclusively in v1. No audio-only or text-based modes in v1. Audio-only and text-based consultation modes deferred to v2 — see Future Readiness. FR-042 updated to remove mode differentiation; all sessions are Zoom video calls.
+- Q: What happens when a patient tries to book a slot that was taken while they were browsing? → A: Real-time availability check at slot selection. When a patient taps a slot to proceed to checkout, the platform checks availability at that moment. If the slot is already booked or held by another patient, an inline error is shown: "This slot is no longer available — please choose another" and the psychiatrist's remaining available slots are displayed. The patient remains on the same screen. FR-011 updated with this pre-checkout availability check.
+- Q: What UX is shown before a non-refundable cancellation is finalised? → A: Explicit confirmation modal shown before proceeding. When a patient cancels within 24 hours of their session, the platform MUST display a confirmation step stating the exact fee amount that will be lost and that the cancellation is non-refundable before any action is taken. The patient must explicitly confirm to proceed. FR-012 updated with this pre-confirmation requirement.
+- Q: How should overlapping slots for the same psychiatrist be handled? → A: Blocked at creation time. The system rejects any new slot whose time window overlaps an existing open or booked slot for the same psychiatrist. The user (psychiatrist or agency admin) sees an immediate error identifying the conflict. FR-024 and FR-025 updated with overlap prevention rule.
+- Q: How far ahead can psychiatrists publish slots and patients book? → A: 3-month rolling window for slot publication. Psychiatrists cannot create availability slots more than 3 months from today. Patients can book any published slot within that window. Both limits stored in PlatformConfiguration, editable by Platform Admins. FR-024 and FR-025 updated.
 - Q: Should a psychiatrist be notified when they become ineligible for new bookings due to low ratings? → A: No — psychiatrists are not notified of ineligibility. Agency Admins and Platform Admins are notified as per FR-039 (unchanged). Additionally, all rating-related thresholds and display settings MUST be configurable by Platform Admins via the admin dashboard UI — not just a backend config store. This includes: eligibility rule thresholds (min sessions + avg rating cutoffs), percentile band labels and boundaries, and matching algorithm rating weight. FR-039 and FR-038 updated to reference Platform Admin dashboard configuration UI. FR-033 updated to include rating configuration panel.
 - Q: What happens when a patient no-shows a confirmed session (pays but never joins)? → A: Booking marked no-show-by-patient. Fee is non-refundable — patient paid and chose not to attend without cancelling, same outcome as a within-24h cancellation. Psychiatrist is prompted after meeting ends: "Patient did not attend — add session notes or skip." Psychiatrist can still add a session note and recommendation. FR-015 and FR-015b apply unchanged. Appointment status no-show-by-patient added.
 - Q: What happens when a psychiatrist no-shows a confirmed session? → A: Auto-detect via Zoom webhook participant data. When a meeting ends, the platform checks whether the psychiatrist joined at any point. If not, the booking is flagged as a psychiatrist no-show. The refund behaviour is governed by a PlatformConfiguration toggle (default: auto-refund). In auto-refund mode: full Razorpay refund issued immediately, patient notified via SMS + WhatsApp with apology and rebook link, Agency Admin and Platform Admin alerted. In manual-review mode: patient is immediately notified that the issue has been detected and is under review; Platform Admin is alerted with a 24h SLA to decide and issue the refund manually via the admin portal. FR-045 added; PlatformConfiguration updated with no-show refund mode toggle.
 - Q: Does v1 support one agency or multiple agencies, and what is the matching pool scope? → A: Multi-agency from day one. The matching pool for patients spans all eligible psychiatrists across all agencies. AgencyAdmins are scoped to their own agency — they can only see and manage psychiatrists belonging to their agency. Psychiatrists belong to exactly one agency. The Agency entity is a first-class entity with an agency_id foreign key on PsychiatristProfile. FR-006 updated to clarify the matching pool is platform-wide across all agencies. FR-027 updated to clarify AgencyAdmin data isolation is agency-scoped. Agency entity added.
 - Q: How long is each session type, and can psychiatrists configure durations? → A: Fixed per session type — no per-psychiatrist variation. Initial Assessment = 60 minutes, Follow-Up = 30 minutes, Crisis/Urgent = 60 minutes. Duration is derived from session_type at slot creation — psychiatrists do not pick duration when creating a slot. All default durations stored in PlatformConfiguration, editable by Platform Admins. AvailabilitySlot records the duration at creation time. FR-042 updated with duration rules; FR-035 (PlatformConfiguration) updated; FR-015c updated to reference session-type-derived end time.
+- Q: Can a psychiatrist see any signal about their own rating or performance? → A: No by default — psychiatrist rating visibility is off unless explicitly enabled by Platform Admin. There is no legal obligation under the Mental Healthcare Act 2017 or Telemedicine Practice Guidelines 2020 to show ratings to psychiatrists. The platform takes a conservative default: psychiatrists see nothing about their own ratings. Platform Admins can enable psychiatrist rating visibility via a toggle in the Platform Admin dashboard (stored in PlatformConfiguration). When enabled, the psychiatrist sees only their aggregate average score, percentile band, and session count — no individual patient ratings under any circumstance. FR-038 updated.
 - Q: How does the e-prescription workflow work, and what is the platform's obligation? → A: The platform provides an e-prescription tool that the psychiatrist uses after each session. This is legally distinct from session notes (CareRecommendation). A prescription is a formal document the patient takes to a pharmacy. All competitors (Practo, Lybrate, mfine, RocketHealth) generate e-prescriptions inside the platform. Mandatory fields per Telemedicine Practice Guidelines 2020: psychiatrist full name + MCI registration number, patient name/age/address/ID verification record, drugs in CAPITAL LETTERS with dosage/frequency/duration/route, digital or photographed wet signature, date of consultation. The platform retains a copy in the patient's clinical record. Prescription PDF is delivered to the patient via an in-platform download link and WhatsApp (if enabled). List C drugs (alprazolam, diazepam, lorazepam, zolpidem, methylphenidate) are prohibited from telemedicine prescriptions by law — the platform MUST hard-block any attempt to add a List C drug to a prescription and display a clear warning naming the drug and the legal restriction. PsychiatristProfile updated with MCI registration number field. New Prescription entity added. FR-043 (e-prescription generation), FR-044 (List C hard block) added. A single centralised Data Lifecycle Service handles all three via a typed job queue. All jobs execute the same two-phase pipeline: Phase 1 erases PII, Phase 2 anonymises clinical records. Job types are: On-Demand (72h SLA, patient confirmed), Abandoned (24h SLA, no confirmation), Expiry (24h SLA, daily scan). Every job produces a PII-free audit entry retained permanently. An internal dashboard shows job status for platform admins. All users access the platform via browser. Notifications are split into three tiers: (1) OTP/authentication — SMS to mobile number, always required; (2) Booking confirmations — SMS to mobile number, plus WhatsApp if enabled; (3) Care reminders (medication, activity, follow-up nudges) — WhatsApp only. During registration, after entering their mobile number, patients see a single checkbox: "Use this number for WhatsApp notifications too?" (checked by default, same UX pattern as "billing = shipping address"). If unchecked, they may enter a different WhatsApp number or leave it blank to opt out. WhatsApp notifications can be toggled on/off at any time from the patient's profile settings (default: on).
 
 ---
@@ -446,9 +451,14 @@ correctly timed, personalized notifications matching their care plan and stated 
   is confirmed MUST be recorded in the Payment record and is immutable — subsequent agency
   fee changes do not affect any already-confirmed bookings.
 - **FR-024**: Agency admins MUST be able to create, update, and block time slots for any
-  psychiatrist on the platform. Changes MUST take effect immediately for new bookings.
+  psychiatrist in their agency. Slots MUST NOT be created more than the platform-configured
+  maximum horizon ahead of today (default: 3 months, stored in PlatformConfiguration).
+  The system MUST reject any slot creation whose time window overlaps an existing open or
+  booked slot for the same psychiatrist — the error response MUST identify the conflicting
+  slot. Changes MUST take effect immediately for new bookings.
 - **FR-025**: Each psychiatrist MUST be able to create, update, and block their own time
-  slots directly, without requiring agency admin intervention.
+  slots directly, without requiring agency admin intervention. The same maximum booking
+  horizon and overlap prevention rules apply as in FR-024.
 - **FR-026**: When a slot that has an existing confirmed booking is blocked or deleted by
   either an agency admin or the psychiatrist, the system MUST automatically notify the
   affected patient, mark the appointment as cancelled, and prompt the patient to rebook.
@@ -491,8 +501,13 @@ correctly timed, personalized notifications matching their care plan and stated 
 **Appointment Booking**
 
 - **FR-011**: The system MUST allow patients to select a time slot and proceed to payment.
-  The slot MUST be temporarily held (reserved) for a maximum of 10 minutes during checkout
-  to prevent it from being booked by another patient simultaneously.
+  When a patient selects a slot, the platform MUST perform a real-time availability check
+  before proceeding to checkout. If the slot is no longer available (booked or held by
+  another patient), the platform MUST display an inline error: "This slot is no longer
+  available — please choose another" and show the psychiatrist's remaining available slots.
+  The patient remains on the same screen with no need to restart the flow. If the slot is
+  still available, it MUST be temporarily held (reserved) for a maximum of 10 minutes
+  during checkout to prevent it from being booked by another patient simultaneously.
 - **FR-011a**: Payment MUST be collected via Razorpay. Booking confirmation uses a
   three-path strategy — whichever path fires first completes the booking:
 
@@ -546,7 +561,10 @@ correctly timed, personalized notifications matching their care plan and stated 
   and release the slot. The patient MUST be notified via SMS and WhatsApp (if enabled) that
   their refund has been initiated and will reach their account within 5–7 business days.
   Cancellations within 24 hours are non-refundable; the slot is still released for rebooking
-  by other patients. Rescheduling is a guided cancel-then-rebook flow — there is no separate
+  by other patients. Before a within-24h cancellation is finalised, the platform MUST display
+  a confirmation step clearly stating the exact session fee amount that will be forfeited and
+  that no refund will be issued. The patient MUST explicitly confirm before the cancellation
+  proceeds — there is no way to trigger a non-refundable cancellation in a single tap. Rescheduling is a guided cancel-then-rebook flow — there is no separate
   rescheduling state machine. When a patient selects "Reschedule", the platform cancels the
   existing booking applying the standard refund rules above, marks the appointment as
   cancelled-by-patient (rescheduled) in the patient's history, and immediately routes the
@@ -658,8 +676,13 @@ correctly timed, personalized notifications matching their care plan and stated 
 - **FR-038**: The platform MUST maintain an aggregated rating profile per psychiatrist,
   computed from all SessionFeedback records linked to their appointments. The aggregated
   rating (average score, session count, rating distribution) MUST be visible to Platform
-  Admins and Agency Admins in their respective portals. Raw ratings and scores MUST NOT
-  be shown to patients under any circumstance. Patients MUST instead see a percentile
+  Admins and Agency Admins in their respective portals. Psychiatrist visibility of their
+  own rating is OFF by default. Platform Admins MAY enable it via a toggle in the Platform
+  Admin dashboard (stored in PlatformConfiguration). When enabled, psychiatrists see only
+  their aggregate average score, their percentile band, and their total session count on
+  their profile dashboard. Individual patient ratings and raw per-session scores MUST NOT
+  be shown to psychiatrists under any circumstance, regardless of the toggle state. Raw
+  ratings and scores MUST NOT be shown to patients under any circumstance. Patients MUST instead see a percentile
   ranking for each psychiatrist (e.g., "Top 5%", "Top 10%") computed relative to all
   active psychiatrists on the platform. The percentile is displayed on the match list and
   the "Previously seen" section. Percentile band labels and their boundary values (e.g.,
@@ -799,6 +822,7 @@ and compliance across all deletion scenarios.
   - Match result list size (default: 5)
   - "Closest available" match score threshold (default: configurable per deployment)
   - Session type durations (default: Initial Assessment = 60 min, Follow-Up = 30 min, Crisis/Urgent = 60 min)
+  - Maximum slot publication horizon (default: 3 months ahead of today)
   - Psychiatrist no-show refund mode (default: auto; options: auto, manual-review)
   - Psychiatrist no-show manual review SLA (default: 24 hours)
   - List C prohibited drug list (default: alprazolam, diazepam, lorazepam, nitrazepam,

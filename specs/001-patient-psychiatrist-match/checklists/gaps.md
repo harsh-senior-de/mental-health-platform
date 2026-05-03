@@ -6,9 +6,9 @@ before asking new questions.
 
 **Last Updated**: 2026-05-03
 **Total Gaps**: 35
-**Resolved**: 14
+**Resolved**: 15
 **Open Critical**: 6
-**Open Important**: 12
+**Open Important**: 11
 **Open Low**: 3
 
 ---
@@ -253,62 +253,57 @@ dashboard-configurable; explicit no-psychiatrist-notification clause), FR-033 (r
 ---
 
 ### GAP-020: Maximum Booking Horizon
-**Status**: OPEN
-**Session**: 11 (Q1)
-**Impact**: UI, performance, and clinical continuity. No upper bound is defined on how far
-ahead psychiatrists can publish slots or patients can book. Can a psychiatrist publish slots
-12 months ahead? Can a patient book 6 months out? Affects calendar display range, slot
-indexing performance, and whether long-horizon bookings make clinical sense.
-**Affected FRs**: FR-024, FR-025, FR-010a
-**Affected Entities**: AvailabilitySlot
+**Status**: RESOLVED
+**Session**: 12 Q1
+**Answer**: 3-month rolling window. Psychiatrists cannot publish slots more than 3 months
+ahead. Patients can book any published slot. Limit stored in PlatformConfiguration.
+FR-024 and FR-025 updated with horizon constraint.
+**FRs Updated**: FR-024, FR-025
+**Entities Updated**: PlatformConfiguration (max horizon setting)
 
 ---
 
 ### GAP-021: Overlapping Slots for Same Psychiatrist
-**Status**: OPEN
-**Session**: 11 (Q2)
-**Impact**: Availability management and double-booking risk. FR-024/FR-025 allow free slot
-creation but contain no rule preventing overlapping slots for the same psychiatrist (e.g.,
-10:00–11:00 and 10:30–11:30). Once one is booked, does the overlapping slot auto-block?
-Or is overlap prevented at creation time? No rule is defined.
-**Affected FRs**: FR-024, FR-025, FR-008
-**Affected Entities**: AvailabilitySlot
+**Status**: RESOLVED
+**Session**: 12 Q2
+**Answer**: Blocked at slot creation time. System rejects any new slot overlapping an
+existing open or booked slot for the same psychiatrist. Error shown immediately with
+conflict identified. FR-024 and FR-025 updated.
+**FRs Updated**: FR-024, FR-025
+**Entities Updated**: None
 
 ---
 
 ### GAP-022: Non-Refundable Cancellation UX
-**Status**: OPEN
-**Session**: 11 (Q3)
-**Impact**: Patient trust and dispute prevention. FR-012 covers the within-24h non-refundable
-case mechanically (slot released, no refund) but nothing is said about the patient experience.
-Is there a confirmation step ("You are about to lose your session fee — are you sure?") before
-the cancellation is finalised? What message does the patient see?
-**Affected FRs**: FR-012
-**Affected Entities**: Appointment
+**Status**: RESOLVED
+**Session**: 12 Q3
+**Answer**: Explicit confirmation modal required before proceeding. Shows exact fee amount
+forfeited and no-refund statement. Patient must confirm — no single-tap non-refundable
+cancellation possible. FR-012 updated.
+**FRs Updated**: FR-012
+**Entities Updated**: None
 
 ---
 
 ### GAP-023: Stale Match List — Slot Already Gone
-**Status**: OPEN
-**Session**: 11 (Q4)
-**Impact**: Booking UX and patient frustration. A patient views match results, waits 20
-minutes, then clicks a slot to book. Another patient booked that slot in the interim. The
-slot hold only starts at checkout — not at match-view time. What does the patient see at
-slot-selection when the slot they intended to pick is gone?
-**Affected FRs**: FR-011, FR-007
-**Affected Entities**: AvailabilitySlot, Appointment
+**Status**: RESOLVED
+**Session**: 12 Q4
+**Answer**: Real-time availability check at slot selection. Inline error shown with
+remaining slots for the same psychiatrist. Patient stays on same screen. FR-011 updated.
+**FRs Updated**: FR-011
+**Entities Updated**: None
 
 ---
 
 ### GAP-024: Psychiatrist Visibility of Own Rating / Feedback Signal
-**Status**: OPEN
-**Session**: 11 (Q5)
-**Impact**: Psychiatrist experience and quality improvement. FR-038 says raw ratings are
-visible to Platform Admins and Agency Admins only. FR-039 notifies admins on ineligibility
-but the psychiatrist is blind to all feedback. Does a psychiatrist ever see any signal —
-aggregate score, trend, percentile — or are they completely uninformed about their performance?
-**Affected FRs**: FR-038, FR-039
-**Affected Entities**: PsychiatristProfile (rating visibility rules)
+**Status**: RESOLVED
+**Session**: 12 Q5
+**Answer**: Hidden by default — no legal obligation to show. Platform Admin has a toggle
+(PlatformConfiguration) to enable psychiatrist visibility of their own aggregate score,
+percentile band, and session count only. Individual patient ratings never shown to
+psychiatrists regardless of toggle state.
+**FRs Updated**: FR-038
+**Affected Entities**: PlatformConfiguration (psychiatrist rating visibility toggle)
 
 ---
 
@@ -506,11 +501,11 @@ cannot engage directly). Not modelled in the spec.
 | GAP-017 | RESOLVED | Session 11 Q3 | Auto-detect via Zoom; admin-configurable auto/manual-review refund mode; FR-045 |
 | GAP-018 | RESOLVED | Session 11 Q4 | No-show-by-patient status; fee non-refundable; psychiatrist prompted to add notes |
 | GAP-019 | RESOLVED | Session 11 Q5 | No psychiatrist notification; all rating/threshold settings via Platform Admin dashboard UI |
-| GAP-020 | OPEN | Session 11 Q1 | — |
-| GAP-021 | OPEN | Session 11 Q2 | — |
-| GAP-022 | OPEN | Session 11 Q3 | — |
-| GAP-023 | OPEN | Session 11 Q4 | — |
-| GAP-024 | OPEN | Session 11 Q5 | — |
+| GAP-020 | RESOLVED | Session 12 Q1 | 3-month rolling horizon; FR-024 and FR-025 updated; PlatformConfiguration |
+| GAP-021 | RESOLVED | Session 12 Q2 | Overlap blocked at slot creation; error identifies conflict; FR-024, FR-025 |
+| GAP-022 | RESOLVED | Session 12 Q3 | Confirmation modal with exact fee shown before non-refundable cancellation; FR-012 |
+| GAP-023 | RESOLVED | Session 12 Q4 | Real-time check at slot selection; inline error + remaining slots shown; FR-011 |
+| GAP-024 | RESOLVED | Session 12 Q5 | Hidden by default; Platform Admin toggle to enable aggregate view only; FR-038 |
 | GAP-025 | OPEN | Session 12 Q1 | — |
 | GAP-026 | OPEN | Session 12 Q2 | — |
 | GAP-027 | OPEN | Session 12 Q3 | — |
