@@ -6,9 +6,9 @@ before asking new questions.
 
 **Last Updated**: 2026-05-03
 **Total Gaps**: 35
-**Resolved**: 15
-**Open Critical**: 6
-**Open Important**: 11
+**Resolved**: 28
+**Open Critical**: 0
+**Open Important**: 4
 **Open Low**: 3
 
 ---
@@ -38,106 +38,104 @@ active access window. All thresholds in PlatformConfiguration (admin-editable).
 ---
 
 ### GAP-002: Zoom Account Ownership
-**Status**: OPEN
-**Session**: 6 (Q2)
-**Impact**: Fundamental Zoom API architecture. Three very different integration approaches
-depending on answer: (a) one platform Zoom account for all meetings, (b) per-psychiatrist
-OAuth, (c) platform Zoom Business with sub-accounts per psychiatrist.
-**Affected FRs**: FR-002, FR-011a, FR-011e, FR-015, FR-015c
-**Affected Entities**: Appointment (Zoom meeting ID), SessionTranscript
+**Status**: RESOLVED
+**Session**: 2026-05-02
+**Answer**: One platform-owned Zoom Business account. All meetings created under the
+platform's single account. Patients and psychiatrists join as external participants.
+No per-psychiatrist OAuth or sub-accounts. All transcript webhooks on this single account.
+**FRs Updated**: FR-002, FR-015, FR-015c
+**Entities Updated**: Appointment (Zoom meeting ID)
 
 ---
 
 ### GAP-003: Data Export / Portability
-**Status**: OPEN
-**Session**: 6 (Q3)
-**Impact**: Direct constitution violation ("Users MUST be able to export their data at any
-time") and DPDPA 2023 requirement. Zero FRs currently cover this. Needs a defined export
-format, trigger, delivery method, and scope (what data is included).
-**Affected FRs**: None yet — new FR required
-**Affected Entities**: Patient, PatientProfile, CareRecommendation, SessionTranscript
+**Status**: RESOLVED
+**Session**: 2026-05-02
+**Answer**: Async package delivery. Patient requests export from profile settings; platform
+delivers secure time-limited download link via WhatsApp + SMS within 72 hours. Includes:
+intake responses, care recommendations, appointment history, notification preferences. Raw
+transcripts excluded. Download link expires 48 hours. New FR-036 added.
+**FRs Updated**: FR-036 added
+**Entities Updated**: None
 
 ---
 
 ### GAP-004: TOTP Recovery Mechanism
-**Status**: OPEN
-**Session**: 6 (Q4)
-**Impact**: Without a recovery path, any psychiatrist/agency admin/platform admin who
-loses their authenticator device is permanently locked out. Needs a defined admin-mediated
-reset flow — who can reset TOTP, how is identity verified, what audit trail is created.
-**Affected FRs**: FR-001b — needs sub-requirement
-**Affected Entities**: PsychiatristProfile, AgencyAdmin, PlatformAdmin
+**Status**: RESOLVED
+**Session**: 2026-05-02
+**Answer**: Admin-mediated reset. User contacts Platform Admin who verifies identity
+out-of-band, resets TOTP enrollment from admin portal. On next login user must re-enroll.
+Every reset logged as immutable audit event (admin, timestamp, account affected).
+**FRs Updated**: FR-001b updated
+**Entities Updated**: None
 
 ---
 
 ### GAP-005: Session Fee / Pricing Model
-**Status**: OPEN
-**Session**: 6 (Q5)
-**Impact**: Data model gap. FR-007 shows "session fee" on match list but neither
-PsychiatristProfile nor Appointment has a fee field. Need to know: who sets the fee
-(agency/psychiatrist/platform), whether it varies per session type, and whether the
-fee at booking time is locked in.
-**Affected FRs**: FR-007, FR-011a
-**Affected Entities**: PsychiatristProfile (fee field missing), Appointment (fee-at-booking missing), Payment
+**Status**: RESOLVED
+**Session**: 2026-05-02
+**Answer**: Agency sets one fixed fee per psychiatrist. No variation by session type.
+Fee locked into Payment record at booking confirmation — subsequent agency changes do not
+affect confirmed bookings. See GAP-033 for deferred per-session-type pricing question.
+**FRs Updated**: FR-007, FR-011a, FR-023a added
+**Entities Updated**: PsychiatristProfile (fee field), Payment (fee-at-booking field)
 
 ---
 
 ### GAP-006: Failed Password Attempt Lockout (Non-Patient Roles)
-**Status**: OPEN
-**Session**: 7 (Q1)
-**Impact**: Security gap. FR-001a defines OTP lockout for patients (3 wrong → 15min lock).
-Nothing equivalent for psychiatrists/admins using email+password. High-privilege accounts
-with PHI access have no brute-force protection defined.
-**Affected FRs**: FR-001b — needs lockout sub-requirement
-**Affected Entities**: None (auth behaviour)
+**Status**: RESOLVED
+**Session**: 2026-05-02
+**Answer**: Same lockout as patient OTP. After 3 consecutive failed password attempts,
+account locked for 15 minutes. Remaining lockout time displayed to user. Parameters
+stored in PlatformConfiguration, editable by Platform Admins.
+**FRs Updated**: FR-001b updated
+**Entities Updated**: None
 
 ---
 
 ## IMPORTANT Gaps (resolve after all CRITICAL are done)
 
 ### GAP-007: Appointment Reminder Timing When Booking < 48h from Session
-**Status**: OPEN
-**Session**: 7 (Q2)
-**Impact**: Notification engine design. US4 scenario 4 says reminders fire at 48h and 2h
-before session. If booking is placed 6h before session, the 48h reminder is impossible.
-What fires? Only 2h? Neither if < 2h? Undefined.
-**Affected FRs**: FR-019 (Tier 2 booking reminders — timing not specified)
-**Affected Entities**: NotificationEvent
+**Status**: RESOLVED
+**Session**: 2026-05-02
+**Answer**: Three reminders (48h, 2h, 15min before session). Only future-window reminders
+are scheduled at booking time — past windows skipped entirely. All window values stored
+in PlatformConfiguration, editable by Platform Admins.
+**FRs Updated**: FR-019 updated
+**Entities Updated**: None
 
 ---
 
 ### GAP-008: Daily Notification Frequency Cap
-**Status**: OPEN
-**Session**: 7 (Q3)
-**Impact**: Notification engine and constitution compliance. Constitution: notifications
-"MUST be bounded by per-user preference settings." No default cap defined. A patient
-with 3 medications + activity nudge + follow-up prompt could receive 5+ WhatsApp messages
-per day. What is the platform default maximum per day?
-**Affected FRs**: FR-020, FR-021a
-**Affected Entities**: NotificationPreference (cap field missing)
+**Status**: RESOLVED
+**Session**: 2026-05-02
+**Answer**: Default cap of 3 Tier 3 WhatsApp notifications per day. Patients can raise
+or lower. Cap stored in PlatformConfiguration, editable by Platform Admins. Tier 2
+booking reminders and OTPs do not count toward this cap.
+**FRs Updated**: FR-020, FR-021a updated
+**Entities Updated**: NotificationPreference (daily cap field)
 
 ---
 
 ### GAP-009: Password Strength Requirements (Non-Patient Roles)
-**Status**: OPEN
-**Session**: 7 (Q4)
-**Impact**: Security specification gap. FR-001b defines email+password for psychiatrists
-and admins but sets no minimum length, complexity, or strength rules for accounts that
-access PHI.
-**Affected FRs**: FR-001b — needs password policy sub-requirement
-**Affected Entities**: None (auth behaviour)
+**Status**: RESOLVED
+**Session**: 2026-05-02
+**Answer**: Minimum 12 characters, at least one uppercase letter, one number, one special
+character. Policy stored in PlatformConfiguration, editable by Platform Admins.
+**FRs Updated**: FR-001b updated
+**Entities Updated**: None
 
 ---
 
 ### GAP-010: Who Creates AgencyAdmin and PlatformAdmin Accounts
-**Status**: OPEN
-**Session**: 7 (Q5)
-**Impact**: Onboarding and access control architecture. Spec says accounts "are created
-by the platform (not self-registered)" but the mechanism is undefined. Who creates the
-first AgencyAdmin? Who creates PlatformAdmin accounts? Can there be multiple AgencyAdmins
-per agency? If the sole AgencyAdmin leaves, the agency is unmanaged.
-**Affected FRs**: FR-001b — needs account provisioning sub-requirement
-**Affected Entities**: AgencyAdmin, PlatformAdmin
+**Status**: RESOLVED
+**Session**: 2026-05-02
+**Answer**: Platform Admin creates all non-patient accounts. Platform Admin creates all
+PlatformAdmin accounts and the first AgencyAdmin per agency. Multiple AgencyAdmins per
+agency allowed — additional ones created by existing AgencyAdmin or Platform Admin.
+Psychiatrist accounts created by any AgencyAdmin of the same agency.
+**FRs Updated**: FR-001b, FR-027 updated
+**Entities Updated**: None
 
 ---
 
