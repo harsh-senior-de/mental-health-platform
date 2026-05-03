@@ -191,67 +191,64 @@ before implementation. Noted as pre-implementation decision in FR-041.
 ## CRITICAL Gaps — Session 9 Scan
 
 ### GAP-015: Session / Slot Duration
-**Status**: OPEN
-**Session**: 10 (Q1)
-**Impact**: Fundamental to booking, availability, and Zoom integration. The spec creates,
-blocks, and books "time slots" throughout but never defines how long a session is. FR-024,
-FR-025, FR-011, and FR-015c (60-min transcript wait) all depend on slot duration. Is every
-session 60 minutes? Can psychiatrists offer different durations? Affects Zoom meeting
-duration, slot overlap logic, back-to-back booking, and transcript wait window.
-**Affected FRs**: FR-024, FR-025, FR-011, FR-015c
-**Affected Entities**: AvailabilitySlot, Appointment
+**Status**: RESOLVED
+**Session**: 11 Q1
+**Answer**: Fixed per session type, stored in PlatformConfiguration. Initial Assessment =
+60 min, Follow-Up = 30 min, Crisis/Urgent = 60 min. Duration recorded on AvailabilitySlot
+and Appointment at creation/booking time. Zoom meeting created with corresponding duration.
+Session end time = start + duration (used by FR-015c and FR-019).
+**FRs Updated**: FR-042 updated with duration rules; FR-035 updated (PlatformConfiguration)
+**Entities Updated**: AvailabilitySlot (duration field added)
 
 ---
 
 ### GAP-016: Multi-Agency Scope
-**Status**: OPEN
-**Session**: 10 (Q2)
-**Impact**: Fundamental business model and matching architecture. Input description says
-"a partner agency" (singular). FR-001h says "the first AgencyAdmin for a new agency"
-(implying multiple agencies). FR-006 matches across "all available psychiatrists" — but
-from what scope? One agency? All agencies? Affects data model, matching logic, and agency
-data isolation.
-**Affected FRs**: FR-006, FR-001h, FR-007
-**Affected Entities**: PsychiatristProfile, AgencyAdmin, MatchScore
+**Status**: RESOLVED
+**Session**: 11 Q2
+**Answer**: Multi-agency from day one. Matching pool is platform-wide across all agencies.
+AgencyAdmins scoped to their own agency only. Psychiatrists belong to exactly one agency.
+Agency is a first-class entity. FR-006 and FR-027 updated; Agency entity added;
+PsychiatristProfile updated with agency reference.
+**FRs Updated**: FR-006 (platform-wide pool), FR-027 (agency-scoped admin isolation)
+**Entities Updated**: Agency entity added; PsychiatristProfile (agency reference)
 
 ---
 
 ### GAP-017: Psychiatrist No-Show
-**Status**: OPEN
-**Session**: 10 (Q3)
-**Impact**: High-trust / customer-obsession gap. If a psychiatrist doesn't join a confirmed
-Zoom session (patient paid, patient joined, psychiatrist absent), the spec is silent. No
-detection mechanism, no automatic refund trigger, and no patient compensation path exists.
-The Zoom webhook fires regardless of whether the psychiatrist was present.
-**Affected FRs**: None yet — new FR required
-**Affected Entities**: Appointment, Payment
+**Status**: RESOLVED
+**Session**: 11 Q3
+**Answer**: Auto-detect via Zoom participant data. Refund mode is admin-configurable in
+PlatformConfiguration (default: auto-refund). Auto mode: immediate full refund + patient
+notification + admin alert. Manual-review mode: patient notified of detection, Platform
+Admin has 24h SLA to decide and issue refund. Both modes: audit-logged; Agency Admin
+always notified. FR-045 added; Appointment status no-show-by-psychiatrist added.
+**FRs Updated**: FR-045 added
+**Entities Updated**: Appointment (no-show-by-psychiatrist status); PlatformConfiguration (refund mode toggle)
 
 ---
 
 ## IMPORTANT Gaps — Session 9 Scan
 
 ### GAP-018: Patient No-Show
-**Status**: OPEN
-**Session**: 10 (Q4)
-**Impact**: Booking state machine and psychiatrist compensation. If a patient pays and books
-but never joins the Zoom call, the session is wasted for the psychiatrist. The spec only
-defines the 24h cancellation rule — not what happens when a booking is "completed" with
-no patient participation. Fee is non-refundable (patient didn't cancel), but is the booking
-marked completed? Does the psychiatrist still enter recommendations?
-**Affected FRs**: FR-012, FR-015
-**Affected Entities**: Appointment (status), SessionFeedback
+**Status**: RESOLVED
+**Session**: 11 Q4
+**Answer**: Booking marked no-show-by-patient via Zoom participant data. Fee non-refundable.
+Psychiatrist prompted to add session notes or skip — FR-015 and FR-015b apply unchanged.
+Appointment status no-show-by-patient added.
+**FRs Updated**: FR-015 (unchanged, applies); Appointment entity updated
+**Entities Updated**: Appointment (no-show-by-patient status added)
 
 ---
 
 ### GAP-019: Psychiatrist Ineligibility — Self-Notification
-**Status**: OPEN
-**Session**: 10 (Q5)
-**Impact**: Psychiatrist experience and transparency. FR-039 notifies Agency Admins and
-Platform Admins when a psychiatrist becomes ineligible. The psychiatrist themselves is never
-told. They could continue working with existing patients without knowing they've been
-flagged and removed from the new-patient matching pool.
-**Affected FRs**: FR-039
-**Affected Entities**: PsychiatristProfile (eligibility notification)
+**Status**: RESOLVED
+**Session**: 11 Q5
+**Answer**: No psychiatrist notification — by design. Admins are notified as before (FR-039).
+All rating thresholds, percentile bands, and matching weights are now configurable via
+Platform Admin dashboard UI (not just backend config). FR-038, FR-039, and FR-033 updated.
+**FRs Updated**: FR-038 (percentile bands dashboard-configurable), FR-039 (eligibility rules
+dashboard-configurable; explicit no-psychiatrist-notification clause), FR-033 (rating config panel added)
+**Entities Updated**: None
 
 ---
 
@@ -504,11 +501,11 @@ cannot engage directly). Not modelled in the spec.
 | GAP-012 | RESOLVED | Session 8 Q2 | "Refund initiated — 5–7 business days" message; all refund FRs updated |
 | GAP-013 | RESOLVED | Session 8 Q3 | Editable intake via FR-004a; psychiatrist notified; edit history retained |
 | GAP-014 | RESOLVED | Session 8 Q3 | FR-041 added; GSTIN ownership deferred to plan (CA confirmation needed) |
-| GAP-015 | OPEN | Session 10 Q1 | — |
-| GAP-016 | OPEN | Session 10 Q2 | — |
-| GAP-017 | OPEN | Session 10 Q3 | — |
-| GAP-018 | OPEN | Session 10 Q4 | — |
-| GAP-019 | OPEN | Session 10 Q5 | — |
+| GAP-015 | RESOLVED | Session 11 Q1 | Fixed durations per type in PlatformConfiguration: Initial=60min, Follow-Up=30min, Crisis=60min |
+| GAP-016 | RESOLVED | Session 11 Q2 | Multi-agency; platform-wide matching pool; AgencyAdmin agency-scoped; Agency entity added |
+| GAP-017 | RESOLVED | Session 11 Q3 | Auto-detect via Zoom; admin-configurable auto/manual-review refund mode; FR-045 |
+| GAP-018 | RESOLVED | Session 11 Q4 | No-show-by-patient status; fee non-refundable; psychiatrist prompted to add notes |
+| GAP-019 | RESOLVED | Session 11 Q5 | No psychiatrist notification; all rating/threshold settings via Platform Admin dashboard UI |
 | GAP-020 | OPEN | Session 11 Q1 | — |
 | GAP-021 | OPEN | Session 11 Q2 | — |
 | GAP-022 | OPEN | Session 11 Q3 | — |
