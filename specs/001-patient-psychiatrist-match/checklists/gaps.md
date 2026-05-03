@@ -4,11 +4,11 @@
 Clarification sessions MUST read this file first and resolve OPEN gaps in priority order
 before asking new questions.
 
-**Last Updated**: 2026-05-02
-**Total Gaps**: 27
+**Last Updated**: 2026-05-03
+**Total Gaps**: 35
 **Resolved**: 14
-**Open Critical**: 3
-**Open Important**: 7
+**Open Critical**: 6
+**Open Important**: 12
 **Open Low**: 3
 
 ---
@@ -353,6 +353,131 @@ supplies.
 
 ---
 
+## CRITICAL Gaps — Research Scan (psychiatry-sessions-india.md)
+
+### GAP-028: No Session Type Differentiation
+**Status**: OPEN
+**Session**: TBD
+**Impact**: Regulatory compliance + architectural. The spec treats every booking identically.
+Indian telemedicine regulations and clinical practice require at least 6 distinct session
+types with different durations, pricing norms, and mode constraints. Most critically: initial
+consultations MUST be video-only (Telemedicine Practice Guidelines 2020). All other modes
+(audio, text) are permitted only for follow-ups. Current spec has no concept of session type.
+**Affected FRs**: FR-002, FR-007, FR-011, FR-015, FR-024, FR-025
+**Affected Entities**: AvailabilitySlot, Appointment — both need a session_type field
+**Research ref**: Section 2.3 and 6.1 of psychiatry-sessions-india.md
+
+---
+
+### GAP-029: Consultation Mode (Video / Audio / Text) Not Modelled
+**Status**: OPEN
+**Session**: TBD
+**Impact**: Regulatory compliance + UX. The spec assumes all sessions are Zoom video calls.
+Indian telemedicine guidelines ONLY mandate video for initial consultations and for any
+session where a new medication is prescribed for the first time. Follow-ups may be audio
+or text-based, which is cheaper and more accessible for patients. No mode concept exists
+in the spec — no way to enforce the video-only rule for initial consultations.
+**Affected FRs**: FR-002, FR-011e (Zoom hardcoded for all sessions)
+**Affected Entities**: Appointment (mode field missing), AvailabilitySlot (mode field missing)
+**Research ref**: Section 2.4 and 6.2 of psychiatry-sessions-india.md
+
+---
+
+### GAP-030: No E-Prescription Workflow
+**Status**: OPEN
+**Session**: TBD
+**Impact**: Regulatory compliance. The spec has "care recommendations" (FR-015, FR-015b)
+but no FR covering a formal e-prescription. Indian telemedicine law requires prescriptions
+to include: MCI registration number, generic drug names in CAPITAL LETTERS, digital
+signature, patient ID verification record, and dose/frequency/duration. This is legally
+distinct from a care recommendation/session note. Without a prescription workflow, the
+platform cannot legally support medication management.
+**Affected FRs**: FR-015, FR-015b — new FR required
+**Affected Entities**: CareRecommendation (prescription is a separate legal document),
+PsychiatristProfile (MCI registration number field missing)
+**Research ref**: Section 3.2 of psychiatry-sessions-india.md
+
+---
+
+### GAP-031: List C Drug Prohibition Not Enforced
+**Status**: OPEN
+**Session**: TBD
+**Impact**: Legal compliance + patient safety. Alprazolam (Alprax), diazepam, lorazepam,
+zolpidem, and methylphenidate cannot be prescribed via telemedicine under the Telepsychiatry
+Operational Guidelines 2020. Alprazolam is one of the most commonly prescribed anxiolytics
+in India — a psychiatrist treating anxiety patients via this platform will routinely want
+to prescribe something the platform legally cannot facilitate. The spec has no mechanism
+to warn or block List C prescriptions.
+**Affected FRs**: FR-015b — new constraint required
+**Affected Entities**: CareRecommendation (drug list validation)
+**Research ref**: Section 3.1 of psychiatry-sessions-india.md
+
+---
+
+## IMPORTANT Gaps — Research Scan (psychiatry-sessions-india.md)
+
+### GAP-032: No Treatment Phase Tracking or Follow-Up Scheduling Suggestions
+**Status**: OPEN
+**Session**: TBD
+**Impact**: Clinical continuity and platform differentiation. All competitors lack this —
+it is a key opportunity. IPS Clinical Practice Guidelines define three treatment phases
+(Acute: every 2–4 weeks; Continuation: every 4–6 weeks; Maintenance: monthly/quarterly).
+The platform currently has no concept of phase, no follow-up frequency suggestion, and
+no automation to remind psychiatrists to schedule follow-ups. Without this, continuity
+of care depends entirely on patient and psychiatrist memory.
+**Affected FRs**: FR-015, FR-016 — new FRs required for phase tracking and follow-up
+scheduling suggestions
+**Affected Entities**: PatientProfile (treatment phase field), CareRecommendation
+(next follow-up date field exists but is not tied to phase logic)
+**Research ref**: Section 4.1 of psychiatry-sessions-india.md
+
+---
+
+### GAP-033: Pricing Differentiation by Session Type
+**Status**: OPEN
+**Session**: TBD
+**Impact**: Business model and data model. Research shows initial consultations cost
+20–50% more than follow-ups across all Indian platforms (e.g., RocketHealth: ₹1,800+
+initial vs. lower for follow-ups). The current spec has one fixed fee per psychiatrist
+(FR-023a) with no variation by session type. Should the agency be able to set separate
+fees for initial vs. follow-up sessions? This directly affects FR-023a and the Payment entity.
+**Affected FRs**: FR-023a, FR-007, FR-011a
+**Affected Entities**: PsychiatristProfile (fee structure), Payment
+**Research ref**: Section 1.5 and 2.3 of psychiatry-sessions-india.md
+
+---
+
+### GAP-034: MHCA 2017 Form B-1 Session Documentation Compliance
+**Status**: OPEN
+**Session**: TBD
+**Impact**: Legal compliance. Each psychiatric session must produce a Form B-1 outpatient
+record under the Mental Healthcare (State) Rules 2018. The minimum content per encounter
+goes well beyond what the spec's care recommendation covers: type of treatment/therapy,
+duration and goals, techniques used, clinical observations, progress notes, capacity
+assessment, risk/benefit discussions, and consent status. The current care recommendation
+FR (FR-015, FR-015b) captures medications and activities but misses the structured clinical
+record required by law.
+**Affected FRs**: FR-015, FR-015b — new FR required for Form B-1 compliance
+**Affected Entities**: CareRecommendation (needs additional fields), new entity: SessionRecord
+**Research ref**: Section 5 of psychiatry-sessions-india.md
+
+---
+
+### GAP-035: No Caregiver Consultation Type
+**Status**: OPEN
+**Session**: TBD
+**Impact**: Clinical coverage and legal compliance. The Telepsychiatry Operational Guidelines
+2020 define a specific "caregiver consultation" type where the patient cannot attend but
+authorises a caregiver (family member, carer) to consult on their behalf. This requires
+patient written authorisation. It is a distinct session type used frequently in Indian
+practice (e.g., for severely unwell patients, elderly patients, or patients in crisis who
+cannot engage directly). Not modelled in the spec.
+**Affected FRs**: New FR required
+**Affected Entities**: Appointment (type field), new: CaregiverAuthorisation
+**Research ref**: Section 2.3 of psychiatry-sessions-india.md
+
+---
+
 ## DEFERRED Gaps (address in planning phase, not spec)
 
 - **Zoom waiting room**: Is it enabled by default? Can psychiatrists control entry?
@@ -399,3 +524,11 @@ supplies.
 | GAP-025 | OPEN | Session 12 Q1 | — |
 | GAP-026 | OPEN | Session 12 Q2 | — |
 | GAP-027 | OPEN | Session 12 Q3 | — |
+| GAP-028 | OPEN | TBD | — |
+| GAP-029 | OPEN | TBD | — |
+| GAP-030 | OPEN | TBD | — |
+| GAP-031 | OPEN | TBD | — |
+| GAP-032 | OPEN | TBD | — |
+| GAP-033 | OPEN | TBD | — |
+| GAP-034 | OPEN | TBD | — |
+| GAP-035 | OPEN | TBD | — |
