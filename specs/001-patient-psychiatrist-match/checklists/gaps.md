@@ -6,10 +6,10 @@ before asking new questions.
 
 **Last Updated**: 2026-05-03
 **Total Gaps**: 35
-**Resolved**: 28
+**Resolved**: 35
 **Open Critical**: 0
-**Open Important**: 4
-**Open Low**: 3
+**Open Important**: 0
+**Open Low**: 0
 
 ---
 
@@ -308,38 +308,35 @@ psychiatrists regardless of toggle state.
 ## LOW PRIORITY Gaps — Session 9 Scan
 
 ### GAP-025: WhatsApp Number Verification at Entry
-**Status**: OPEN
-**Session**: 12 (Q1)
-**Impact**: Notification delivery quality. When a patient enters a separate WhatsApp number
-(different from mobile), it's stored as-is with no active verification. An invalid or
-mistyped number results in silent notification failure forever. Should there be a
-verification ping before the number is saved?
-**Affected FRs**: FR-001
-**Affected Entities**: NotificationPreference
+**Status**: RESOLVED
+**Session**: 13 Q5
+**Answer**: No verification — store as entered. Helper note shown: "Make sure this number
+is registered on WhatsApp." SMS to primary mobile is the guaranteed fallback for all
+critical communication; silent WhatsApp failure is acceptable.
+**FRs Updated**: FR-001 unchanged
+**Entities Updated**: None
 
 ---
 
 ### GAP-026: Consent Denial at Registration
-**Status**: OPEN
-**Session**: 12 (Q2)
-**Impact**: Onboarding flow branch. FR-005 requires explicit consent before storing sensitive
-health data. The spec has no branch for consent denial — can a patient proceed without
-consenting? Or is consent mandatory to use the platform at all? This determines whether
-there is a "blocked" state at registration.
-**Affected FRs**: FR-005
-**Affected Entities**: Patient (consent status)
+**Status**: RESOLVED
+**Session**: 13 Q6
+**Answer**: Hard gate — no consent, no access. Declining deletes the partial account
+immediately. No browse-only mode. Consent screen shown before any intake data is collected.
+DPDPA 2023 requires informed consent before processing sensitive personal data.
+**FRs Updated**: FR-005 updated
+**Entities Updated**: None
 
 ---
 
 ### GAP-027: GST Invoice Sequential Numbering
-**Status**: OPEN
-**Session**: 12 (Q3)
-**Impact**: Legal compliance. GST law in India requires invoices to carry sequential invoice
-numbers (not just a booking reference). FR-041 lists required invoice fields but omits a
-sequential invoice number series — this is a legal requirement under GST rules for B2C
-supplies.
-**Affected FRs**: FR-041
-**Affected Entities**: Payment (invoice number field)
+**Status**: RESOLVED
+**Session**: 13 Q7
+**Answer**: Format `[PREFIX]/[FY]/[SEQUENCE]` (e.g., MHP/2026-27/00001). Auto-incrementing,
+gapless, resets April 1 each financial year. Prefix configurable by Platform Admin in
+PlatformConfiguration. invoice_number field on Payment entity, immutable once issued.
+**FRs Updated**: FR-041 updated
+**Entities Updated**: Payment (invoice_number field)
 
 ---
 
@@ -400,64 +397,53 @@ List C drug list stored in PlatformConfiguration, editable by Platform Admins.
 ## IMPORTANT Gaps — Research Scan (psychiatry-sessions-india.md)
 
 ### GAP-032: No Treatment Phase Tracking or Follow-Up Scheduling Suggestions
-**Status**: OPEN
-**Session**: TBD
-**Impact**: Clinical continuity and platform differentiation. All competitors lack this —
-it is a key opportunity. IPS Clinical Practice Guidelines define three treatment phases
-(Acute: every 2–4 weeks; Continuation: every 4–6 weeks; Maintenance: monthly/quarterly).
-The platform currently has no concept of phase, no follow-up frequency suggestion, and
-no automation to remind psychiatrists to schedule follow-ups. Without this, continuity
-of care depends entirely on patient and psychiatrist memory.
-**Affected FRs**: FR-015, FR-016 — new FRs required for phase tracking and follow-up
-scheduling suggestions
-**Affected Entities**: PatientProfile (treatment phase field), CareRecommendation
-(next follow-up date field exists but is not tied to phase logic)
-**Research ref**: Section 4.1 of psychiatry-sessions-india.md
+**Status**: RESOLVED
+**Session**: 13 Q1
+**Answer**: Psychiatrist sets a recommended follow-up interval (1w/2w/4w/6w/8w/3m/6m or
+specific date) in the session notes form. Platform sends Tier 3 WhatsApp nudge to patient
+on that date with a direct booking link. Nudge suppressed if patient already has a future
+confirmed booking. Phase labels not exposed in UI. next_follow_up_date field on
+CareRecommendation wired to notification system via FR-046.
+**FRs Updated**: FR-046 added
+**Entities Updated**: CareRecommendation (next_follow_up_date wired to notification system)
 
 ---
 
 ### GAP-033: Pricing Differentiation by Session Type
-**Status**: OPEN
-**Session**: TBD
-**Impact**: Business model and data model. Research shows initial consultations cost
-20–50% more than follow-ups across all Indian platforms (e.g., RocketHealth: ₹1,800+
-initial vs. lower for follow-ups). The current spec has one fixed fee per psychiatrist
-(FR-023a) with no variation by session type. Should the agency be able to set separate
-fees for initial vs. follow-up sessions? This directly affects FR-023a and the Payment entity.
-**Affected FRs**: FR-023a, FR-007, FR-011a
-**Affected Entities**: PsychiatristProfile (fee structure), Payment
-**Research ref**: Section 1.5 and 2.3 of psychiatry-sessions-india.md
+**Status**: RESOLVED
+**Session**: 13 Q2
+**Answer**: Three separate fees per psychiatrist (Initial Assessment, Follow-Up,
+Crisis/Urgent) set by Agency Admin. Agency Admins can bulk-update fees for all
+psychiatrists in their agency; Platform Admins can bulk-update platform-wide.
+Individual overrides remain available after bulk update. Fees locked at booking.
+**FRs Updated**: FR-023a updated
+**Entities Updated**: PsychiatristProfile (3 fee fields replacing 1)
 
 ---
 
 ### GAP-034: MHCA 2017 Form B-1 Session Documentation Compliance
-**Status**: OPEN
-**Session**: TBD
-**Impact**: Legal compliance. Each psychiatric session must produce a Form B-1 outpatient
-record under the Mental Healthcare (State) Rules 2018. The minimum content per encounter
-goes well beyond what the spec's care recommendation covers: type of treatment/therapy,
-duration and goals, techniques used, clinical observations, progress notes, capacity
-assessment, risk/benefit discussions, and consent status. The current care recommendation
-FR (FR-015, FR-015b) captures medications and activities but misses the structured clinical
-record required by law.
-**Affected FRs**: FR-015, FR-015b — new FR required for Form B-1 compliance
-**Affected Entities**: CareRecommendation (needs additional fields), new entity: SessionRecord
-**Research ref**: Section 5 of psychiatry-sessions-india.md
+**Status**: RESOLVED
+**Session**: 13 Q3
+**Answer**: FR-015b expanded with all Form B-1 required fields. Required: presenting
+complaints, clinical observations, treatment type, consent status. Optional: history
+summary, techniques, capacity assessment, risk/benefit notes. Psychiatrist must check
+Form B-1 completion declaration before approving session record. Record retained 7 years
+as Form B-1 equivalent. No new entity needed — CareRecommendation extended.
+**FRs Updated**: FR-015b updated
+**Entities Updated**: CareRecommendation (additional Form B-1 fields)
 
 ---
 
 ### GAP-035: No Caregiver Consultation Type
-**Status**: OPEN
-**Session**: TBD
-**Impact**: Clinical coverage and legal compliance. The Telepsychiatry Operational Guidelines
-2020 define a specific "caregiver consultation" type where the patient cannot attend but
-authorises a caregiver (family member, carer) to consult on their behalf. This requires
-patient written authorisation. It is a distinct session type used frequently in Indian
-practice (e.g., for severely unwell patients, elderly patients, or patients in crisis who
-cannot engage directly). Not modelled in the spec.
-**Affected FRs**: New FR required
-**Affected Entities**: Appointment (type field), new: CaregiverAuthorisation
-**Research ref**: Section 2.3 of psychiatry-sessions-india.md
+**Status**: RESOLVED
+**Session**: 13 Q4
+**Answer**: Deferred to v2. Target users are self-referring adults; caregiver consultation
+is more common in institutional settings. Complexity (consent, identity verification) not
+justified for a rare v1 use case. Already captured in Future Readiness → Additional
+Session Types (v2). session_type is string enum in v1 — adding this type in v2 requires
+no schema migration.
+**FRs Updated**: None
+**Entities Updated**: None
 
 ---
 
@@ -504,14 +490,14 @@ cannot engage directly). Not modelled in the spec.
 | GAP-022 | RESOLVED | Session 12 Q3 | Confirmation modal with exact fee shown before non-refundable cancellation; FR-012 |
 | GAP-023 | RESOLVED | Session 12 Q4 | Real-time check at slot selection; inline error + remaining slots shown; FR-011 |
 | GAP-024 | RESOLVED | Session 12 Q5 | Hidden by default; Platform Admin toggle to enable aggregate view only; FR-038 |
-| GAP-025 | OPEN | Session 12 Q1 | — |
-| GAP-026 | OPEN | Session 12 Q2 | — |
-| GAP-027 | OPEN | Session 12 Q3 | — |
+| GAP-025 | RESOLVED | Session 13 Q5 | No verification; helper note shown; SMS is guaranteed fallback |
+| GAP-026 | RESOLVED | Session 13 Q6 | Hard gate — decline deletes partial account; no browse mode; FR-005 updated |
+| GAP-027 | RESOLVED | Session 13 Q7 | FORMAT PREFIX/FY/SEQ; resets April 1; configurable prefix; Payment.invoice_number; FR-041 |
 | GAP-028 | RESOLVED | Session 10 Q1 | Three types: Initial Assessment (video-only), Follow-Up (any mode), Crisis/Urgent (video-preferred); FR-042 added |
 | GAP-029 | RESOLVED | Session 10 Q2 | Video only in v1; audio-only + text-based modes deferred to v2 Future Readiness |
 | GAP-030 | RESOLVED | Session 10 Q3 | E-prescription tool added; FR-043; MCI reg number on PsychiatristProfile; Prescription entity added |
 | GAP-031 | RESOLVED | Session 10 Q3 | List C hard block; FR-044; List C list in PlatformConfiguration |
-| GAP-032 | OPEN | TBD | — |
-| GAP-033 | OPEN | TBD | — |
-| GAP-034 | OPEN | TBD | — |
-| GAP-035 | OPEN | TBD | — |
+| GAP-032 | RESOLVED | Session 13 Q1 | Follow-up interval picker in session notes; WhatsApp nudge on date; FR-046 added |
+| GAP-033 | RESOLVED | Session 13 Q2 | 3 fees per psychiatrist by session type; bulk update for Agency Admin + Platform Admin; FR-023a |
+| GAP-034 | RESOLVED | Session 13 Q3 | FR-015b expanded with Form B-1 fields; declaration checkbox before approval; 7-year retention |
+| GAP-035 | RESOLVED | Session 13 Q4 | Deferred to v2; string enum session_type in v1 enables no-migration addition later |

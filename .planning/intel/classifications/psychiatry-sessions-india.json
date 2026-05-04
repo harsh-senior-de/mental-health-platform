@@ -1,0 +1,29 @@
+{
+  "source_path": "/home/harsh/workspace/mental-health-platform/specs/001-patient-psychiatrist-match/research/psychiatry-sessions-india.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Research: Psychiatric Session Design in the Indian Market",
+  "summary": "Competitor analysis and clinical workflow research grounding Indian psychiatric care session types, regulatory constraints, and platform design implications.",
+  "scope": [
+    "psychiatric sessions",
+    "session types",
+    "booking flow",
+    "telemedicine regulations",
+    "prescription workflow",
+    "MHCA 2017",
+    "Telemedicine Practice Guidelines 2020",
+    "Telepsychiatry Operational Guidelines 2020",
+    "competitor platforms",
+    "treatment phase tracking",
+    "follow-up scheduling",
+    "e-prescription",
+    "MCI registration",
+    "drug classification",
+    "caregiver consultation"
+  ],
+  "cross_refs": [],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

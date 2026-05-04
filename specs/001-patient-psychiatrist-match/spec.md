@@ -76,6 +76,16 @@
 - Q: Can a psychiatrist see any signal about their own rating or performance? → A: No by default — psychiatrist rating visibility is off unless explicitly enabled by Platform Admin. There is no legal obligation under the Mental Healthcare Act 2017 or Telemedicine Practice Guidelines 2020 to show ratings to psychiatrists. The platform takes a conservative default: psychiatrists see nothing about their own ratings. Platform Admins can enable psychiatrist rating visibility via a toggle in the Platform Admin dashboard (stored in PlatformConfiguration). When enabled, the psychiatrist sees only their aggregate average score, percentile band, and session count — no individual patient ratings under any circumstance. FR-038 updated.
 - Q: How does the e-prescription workflow work, and what is the platform's obligation? → A: The platform provides an e-prescription tool that the psychiatrist uses after each session. This is legally distinct from session notes (CareRecommendation). A prescription is a formal document the patient takes to a pharmacy. All competitors (Practo, Lybrate, mfine, RocketHealth) generate e-prescriptions inside the platform. Mandatory fields per Telemedicine Practice Guidelines 2020: psychiatrist full name + MCI registration number, patient name/age/address/ID verification record, drugs in CAPITAL LETTERS with dosage/frequency/duration/route, digital or photographed wet signature, date of consultation. The platform retains a copy in the patient's clinical record. Prescription PDF is delivered to the patient via an in-platform download link and WhatsApp (if enabled). List C drugs (alprazolam, diazepam, lorazepam, zolpidem, methylphenidate) are prohibited from telemedicine prescriptions by law — the platform MUST hard-block any attempt to add a List C drug to a prescription and display a clear warning naming the drug and the legal restriction. PsychiatristProfile updated with MCI registration number field. New Prescription entity added. FR-043 (e-prescription generation), FR-044 (List C hard block) added. A single centralised Data Lifecycle Service handles all three via a typed job queue. All jobs execute the same two-phase pipeline: Phase 1 erases PII, Phase 2 anonymises clinical records. Job types are: On-Demand (72h SLA, patient confirmed), Abandoned (24h SLA, no confirmation), Expiry (24h SLA, daily scan). Every job produces a PII-free audit entry retained permanently. An internal dashboard shows job status for platform admins. All users access the platform via browser. Notifications are split into three tiers: (1) OTP/authentication — SMS to mobile number, always required; (2) Booking confirmations — SMS to mobile number, plus WhatsApp if enabled; (3) Care reminders (medication, activity, follow-up nudges) — WhatsApp only. During registration, after entering their mobile number, patients see a single checkbox: "Use this number for WhatsApp notifications too?" (checked by default, same UX pattern as "billing = shipping address"). If unchecked, they may enter a different WhatsApp number or leave it blank to opt out. WhatsApp notifications can be toggled on/off at any time from the patient's profile settings (default: on).
 
+### Session 2026-05-04
+
+- Q: Does the GST invoice need a sequential invoice number series? → A: Yes — GST law requires it. Invoice number format: `[PREFIX]/[FY]/[SEQUENCE]` (e.g., MHP/2026-27/00001). Auto-incrementing, gapless, resets April 1 each financial year. Prefix configurable by Platform Admins in PlatformConfiguration. invoice_number field added to Payment entity, immutable once issued. FR-041 updated.
+- Q: What happens if a patient denies consent at registration? → A: Hard gate — no consent, no platform access. If the patient declines, their partial account is deleted immediately and they cannot proceed. No browse-only or partial-access mode. Consent screen shown before any intake data is collected, per DPDPA 2023. FR-005 updated.
+- Q: Should a separate WhatsApp number entered at registration be verified before saving? → A: No verification — store as entered. A helper note is displayed: "Make sure this number is registered on WhatsApp." Silent WhatsApp failure is acceptable since SMS to the primary mobile number is the guaranteed fallback for all critical communication (OTPs, booking confirmations). FR-001 unchanged.
+- Q: Should v1 support caregiver consultations (patient authorises a family member to attend on their behalf)? → A: Deferred to v2. Target users are self-referring tech-comfortable adults; caregiver consultations are more common in institutional settings. The authorisation flow (consent management, caregiver identity verification) adds complexity for a rare v1 use case. Caregiver Consultation already listed in Future Readiness → Additional Session Types (v2). session_type stored as string enum in v1 so the type can be added in v2 without schema migration. GAP-035 resolved.
+- Q: Does the session notes form meet MHCA 2017 Form B-1 legal documentation requirements? → A: No — FR-015b expanded to add all missing Form B-1 fields. Required (must complete before approving): presenting complaints summary, clinical observations/progress notes, treatment type, consent status. Optional: history summary, techniques used, capacity assessment, risk/benefit notes. Pre-populated/editable: medications, activity, recommended next session date. Psychiatrist must check a Form B-1 completion declaration before approving. Session record serves as the platform's Form B-1 equivalent, retained 7 years. FR-015b updated.
+- Q: Should fees vary by session type, and who can change them? → A: Three separate fees per psychiatrist — one each for Initial Assessment, Follow-Up, and Crisis/Urgent — set by the Agency Admin. Both Agency Admins (for their agency's psychiatrists) and Platform Admins (platform-wide) can bulk-update fees for all psychiatrists in one action. Individual per-psychiatrist overrides remain available after a bulk update. Fees locked into Payment record at booking; no confirmed bookings affected by subsequent changes. FR-023a updated.
+- Q: Should the platform guide patients on when to come back for their next session? → A: Yes — psychiatrist sets a recommended follow-up date after each session, and the platform WhatsApp-nudges the patient when that date arrives. The phase labels (Acute/Continuation/Maintenance) are not exposed in the UI — the psychiatrist simply picks a recommended interval (1 week, 2 weeks, 4 weeks, 6 weeks, 8 weeks, 3 months, 6 months, or a specific date) from the session notes form. When the date arrives, the platform sends a Tier 3 WhatsApp nudge: "Dr. [Name] recommended your next session around now — [Book Now link]." The nudge is suppressed if the patient already has a confirmed future booking. The next_follow_up_date field already exists on CareRecommendation — FR-046 wires it to the notification system. GAP-032 resolved.
+
 ---
 
 ## User Scenarios & Testing *(mandatory)*
@@ -317,7 +327,11 @@ correctly timed, personalized notifications matching their care plan and stated 
   in-platform notification to all psychiatrists who currently have an active access window
   for that patient (per FR-018a), informing them that the patient's intake has been updated.
 - **FR-005**: The system MUST require explicit consent from the patient before storing any
-  sensitive health data, with a clear explanation of what is stored and why.
+  sensitive health data, with a clear explanation of what is collected and why (DPDPA 2023
+  requirement). Consent is a hard gate — if the patient declines, they cannot proceed and
+  their partial account (mobile number and OTP record only) is deleted immediately. No
+  partial access or browse-only mode exists without consent. The consent screen MUST be
+  shown before any intake data is collected.
 
 **Session Types**
 
@@ -379,6 +393,19 @@ correctly timed, personalized notifications matching their care plan and stated 
     review. The Platform Admin receives an in-platform alert with a 24-hour SLA to review
     the case and issue the refund manually via the admin portal (FR-033). Once the Platform
     Admin issues the refund, the patient is notified with the standard refund message.
+
+- **FR-046**: The session notes form (FR-015b) MUST include a "Recommended next session"
+  field where the psychiatrist selects an interval (1 week, 2 weeks, 4 weeks, 6 weeks,
+  8 weeks, 3 months, 6 months) or a specific date. This field is optional — the
+  psychiatrist may leave it blank. When set, it populates the next_follow_up_date field
+  on the CareRecommendation record. The platform MUST send a Tier 3 WhatsApp nudge to
+  the patient on the recommended date (nudge timing configurable in PlatformConfiguration,
+  default: send on the day itself). Nudge text: "Dr. [Name] recommended your next session
+  around now. Ready to book? [direct booking link pre-filtered to that psychiatrist]."
+  The nudge MUST be suppressed if the patient already has a confirmed future booking with
+  any psychiatrist at the time of sending. The patient can dismiss the nudge without
+  affecting their general notification preferences. Phase labels (Acute/Continuation/
+  Maintenance) are not shown in the UI — the psychiatrist uses the interval picker only.
 
   In both modes, the no-show event MUST be audit-logged with: appointment reference,
   psychiatrist ID, session date/time, detection method (Zoom participant data), and
@@ -444,12 +471,19 @@ correctly timed, personalized notifications matching their care plan and stated 
 
 **Availability Management**
 
-- **FR-023a**: Each psychiatrist MUST have exactly one session fee (in INR) set by the
-  agency admin on their profile. A psychiatrist cannot have more than one fee — no variable
-  pricing by session type, time slot, or any other factor. The fee is displayed to the
-  patient on the match list and booking screen. The fee in effect at the moment a booking
-  is confirmed MUST be recorded in the Payment record and is immutable — subsequent agency
+- **FR-023a**: Each psychiatrist MUST have three session fees (in INR) on their profile —
+  one per session type: Initial Assessment, Follow-Up, and Crisis/Urgent. All three fees
+  are set by the Agency Admin. The correct fee for the booked session type is displayed to
+  the patient on the match list and booking screen. The fee in effect at the moment a
+  booking is confirmed MUST be recorded in the Payment record and is immutable — subsequent
   fee changes do not affect any already-confirmed bookings.
+
+  Agency Admins MUST be able to bulk-update fees for all psychiatrists in their agency in
+  a single action (e.g., set Follow-Up fee to ₹800 for all psychiatrists in the agency).
+  Platform Admins MUST be able to bulk-update fees for all psychiatrists across all
+  agencies platform-wide. After a bulk update, individual psychiatrist fees can still be
+  overridden per-psychiatrist by the Agency Admin. Bulk updates do not affect any
+  already-confirmed bookings.
 - **FR-024**: Agency admins MUST be able to create, update, and block time slots for any
   psychiatrist in their agency. Slots MUST NOT be created more than the platform-configured
   maximum horizon ahead of today (default: 3 months, stored in PlatformConfiguration).
@@ -624,8 +658,17 @@ correctly timed, personalized notifications matching their care plan and stated 
   submits a deletion request (in which case anonymisation, not erasure, applies to the
   transcript text).
 - **FR-015b**: Psychiatrists MUST also be able to add recommendations manually, independent
-  of the transcript, including: medication name, dosage, frequency, activity type, and
-  follow-up date.
+  of the transcript. The session notes form MUST collect all fields required for MHCA 2017
+  Form B-1 compliance. Required fields (psychiatrist must complete before approving):
+  presenting complaints summary, clinical observations / progress notes, treatment type
+  (pharmacological / psychotherapy / combined), and consent status confirmation. Optional
+  fields (psychiatrist may leave blank): history summary, techniques used, capacity
+  assessment notes, risk/benefit discussion notes. Pre-populated fields (auto-filled from
+  profile/prior records, editable): medication name, dosage, frequency, activity type,
+  and recommended next session date (FR-046). The psychiatrist MUST explicitly confirm
+  Form B-1 completion by checking a declaration before the session record is approved and
+  written to the patient's care record. The session record is stored as the platform's
+  Form B-1 equivalent and retained for 7 years.
 - **FR-015c**: If no transcript is received from Zoom within 60 minutes of a session's
   scheduled end time, the system MUST: (1) display a notice to the psychiatrist on the
   patient's record stating the transcript was not received, (2) prompt them to enter
@@ -714,11 +757,19 @@ correctly timed, personalized notifications matching their care plan and stated 
 - **FR-041**: The platform MUST generate a GST-compliant tax invoice for every confirmed
   and paid booking. Indian GST law requires a tax invoice to be issued for all taxable
   services (mental health consultations are a taxable service). The invoice MUST include
-  at minimum: booking reference, session date and time, psychiatrist name, session fee,
-  applicable GST amount and rate, and the GSTIN of the issuing entity. The invoice MUST
-  be delivered to the patient (via a link in the booking confirmation SMS/WhatsApp message
-  or available for download from their booking history) within 24 hours of payment
-  confirmation.
+  at minimum: a sequential GST invoice number, booking reference, session date and time,
+  psychiatrist name, session fee, applicable GST amount and rate, and the GSTIN of the
+  issuing entity. The invoice MUST be delivered to the patient (via a link in the booking
+  confirmation SMS/WhatsApp message or available for download from their booking history)
+  within 24 hours of payment confirmation.
+
+  **Sequential invoice numbering**: GST law requires invoices to carry a unique sequential
+  number series. The platform MUST auto-generate invoice numbers in the format
+  `[PREFIX]/[FY]/[SEQUENCE]` — e.g., `MHP/2026-27/00001`. The sequence MUST be
+  auto-incrementing, gapless, and reset to 00001 on April 1 each financial year. The
+  prefix is configurable by Platform Admins (stored in PlatformConfiguration). The
+  invoice_number field MUST be stored on the Payment entity and is immutable once issued.
+
   **Pre-implementation decision required**: The GSTIN on the invoice (platform company vs.
   agency) depends on the legal service-provider structure — whether the platform is the
   merchant of record or an Electronic Commerce Operator acting on behalf of the agency.

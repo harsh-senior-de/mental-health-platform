@@ -1,0 +1,29 @@
+{
+  "source_path": "/home/harsh/workspace/mental-health-platform/specs/001-patient-psychiatrist-match/checklists/gaps.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Spec Gaps Tracker: 001-patient-psychiatrist-match",
+  "summary": "Tracks all identified gaps, assumptions, and unresolved decisions in the patient-psychiatrist match spec, with resolution status per gap.",
+  "scope": [
+    "patient-psychiatrist-match",
+    "spec clarification",
+    "gap tracking",
+    "FR requirements",
+    "entity definitions",
+    "Zoom integration",
+    "TOTP recovery",
+    "session fees",
+    "notifications",
+    "e-prescription",
+    "MHCA 2017 compliance",
+    "DPDPA 2023 compliance"
+  ],
+  "cross_refs": [
+    "specs/001-patient-psychiatrist-match/spec.md",
+    "psychiatry-sessions-india.md"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}
