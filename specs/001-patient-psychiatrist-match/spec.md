@@ -62,8 +62,8 @@
 
 ### Session 2026-05-03
 
-- Q: Which session types should the platform support at v1 launch? → A: Three types — Initial Assessment, Follow-Up, and Crisis/Urgent. Initial Assessment is mandatory for any patient's first consultation with any psychiatrist on the platform and MUST be conducted via video only (Telemedicine Practice Guidelines 2020). Follow-Up covers all subsequent standard consultations; any consultation mode is permitted. Crisis/Urgent is an emergency booking that bypasses normal slot selection, is video-preferred, and is available to patients who have already completed at least one Initial Assessment. FR-042 added; AvailabilitySlot and Appointment entities updated with session_type field.
-- Q: Which consultation modes should the platform support for Follow-Up sessions at v1? → A: Video only — all three session types (Initial Assessment, Follow-Up, Crisis/Urgent) use Zoom video exclusively in v1. No audio-only or text-based modes in v1. Audio-only and text-based consultation modes deferred to v2 — see Future Readiness. FR-042 updated to remove mode differentiation; all sessions are Zoom video calls.
+- Q: Which session types should the platform support at v1 launch? → A: Three types — Initial Assessment, Follow-Up, and Urgent Review. Initial Assessment is mandatory for any patient's first consultation with any psychiatrist on the platform and MUST be conducted via video only (Telemedicine Practice Guidelines 2020). Follow-Up covers all subsequent standard consultations; any consultation mode is permitted. Urgent Review is an emergency booking that bypasses normal slot selection, is video-preferred, and is available to patients who have already completed at least one Initial Assessment. FR-042 added; AvailabilitySlot and Appointment entities updated with session_type field.
+- Q: Which consultation modes should the platform support for Follow-Up sessions at v1? → A: Video only — all three session types (Initial Assessment, Follow-Up, Urgent Review) use Zoom video exclusively in v1. No audio-only or text-based modes in v1. Audio-only and text-based consultation modes deferred to v2 — see Future Readiness. FR-042 updated to remove mode differentiation; all sessions are Zoom video calls.
 - Q: What happens when a patient tries to book a slot that was taken while they were browsing? → A: Real-time availability check at slot selection. When a patient taps a slot to proceed to checkout, the platform checks availability at that moment. If the slot is already booked or held by another patient, an inline error is shown: "This slot is no longer available — please choose another" and the psychiatrist's remaining available slots are displayed. The patient remains on the same screen. FR-011 updated with this pre-checkout availability check.
 - Q: What UX is shown before a non-refundable cancellation is finalised? → A: Explicit confirmation modal shown before proceeding. When a patient cancels within 24 hours of their session, the platform MUST display a confirmation step stating the exact fee amount that will be lost and that the cancellation is non-refundable before any action is taken. The patient must explicitly confirm to proceed. FR-012 updated with this pre-confirmation requirement.
 - Q: How should overlapping slots for the same psychiatrist be handled? → A: Blocked at creation time. The system rejects any new slot whose time window overlaps an existing open or booked slot for the same psychiatrist. The user (psychiatrist or agency admin) sees an immediate error identifying the conflict. FR-024 and FR-025 updated with overlap prevention rule.
@@ -72,7 +72,7 @@
 - Q: What happens when a patient no-shows a confirmed session (pays but never joins)? → A: Booking marked no-show-by-patient. Fee is non-refundable — patient paid and chose not to attend without cancelling, same outcome as a within-24h cancellation. Psychiatrist is prompted after meeting ends: "Patient did not attend — add session notes or skip." Psychiatrist can still add a session note and recommendation. FR-015 and FR-015b apply unchanged. Appointment status no-show-by-patient added.
 - Q: What happens when a psychiatrist no-shows a confirmed session? → A: Auto-detect via Zoom webhook participant data. When a meeting ends, the platform checks whether the psychiatrist joined at any point. If not, the booking is flagged as a psychiatrist no-show. The refund behaviour is governed by a PlatformConfiguration toggle (default: auto-refund). In auto-refund mode: full Razorpay refund issued immediately, patient notified via SMS + WhatsApp with apology and rebook link, Agency Admin and Platform Admin alerted. In manual-review mode: patient is immediately notified that the issue has been detected and is under review; Platform Admin is alerted with a 24h SLA to decide and issue the refund manually via the admin portal. FR-045 added; PlatformConfiguration updated with no-show refund mode toggle.
 - Q: Does v1 support one agency or multiple agencies, and what is the matching pool scope? → A: Multi-agency from day one. The matching pool for patients spans all eligible psychiatrists across all agencies. AgencyAdmins are scoped to their own agency — they can only see and manage psychiatrists belonging to their agency. Psychiatrists belong to exactly one agency. The Agency entity is a first-class entity with an agency_id foreign key on PsychiatristProfile. FR-006 updated to clarify the matching pool is platform-wide across all agencies. FR-027 updated to clarify AgencyAdmin data isolation is agency-scoped. Agency entity added.
-- Q: How long is each session type, and can psychiatrists configure durations? → A: Fixed per session type — no per-psychiatrist variation. Initial Assessment = 60 minutes, Follow-Up = 30 minutes, Crisis/Urgent = 60 minutes. Duration is derived from session_type at slot creation — psychiatrists do not pick duration when creating a slot. All default durations stored in PlatformConfiguration, editable by Platform Admins. AvailabilitySlot records the duration at creation time. FR-042 updated with duration rules; FR-035 (PlatformConfiguration) updated; FR-015c updated to reference session-type-derived end time.
+- Q: How long is each session type, and can psychiatrists configure durations? → A: Fixed per session type — no per-psychiatrist variation. Initial Assessment = 60 minutes, Follow-Up = 30 minutes, Urgent Review = 60 minutes. Duration is derived from session_type at slot creation — psychiatrists do not pick duration when creating a slot. All default durations stored in PlatformConfiguration, editable by Platform Admins. AvailabilitySlot records the duration at creation time. FR-042 updated with duration rules; FR-035 (PlatformConfiguration) updated; FR-015c updated to reference session-type-derived end time.
 - Q: Can a psychiatrist see any signal about their own rating or performance? → A: No by default — psychiatrist rating visibility is off unless explicitly enabled by Platform Admin. There is no legal obligation under the Mental Healthcare Act 2017 or Telemedicine Practice Guidelines 2020 to show ratings to psychiatrists. The platform takes a conservative default: psychiatrists see nothing about their own ratings. Platform Admins can enable psychiatrist rating visibility via a toggle in the Platform Admin dashboard (stored in PlatformConfiguration). When enabled, the psychiatrist sees only their aggregate average score, percentile band, and session count — no individual patient ratings under any circumstance. FR-038 updated.
 - Q: How does the e-prescription workflow work, and what is the platform's obligation? → A: The platform provides an e-prescription tool that the psychiatrist uses after each session. This is legally distinct from session notes (CareRecommendation). A prescription is a formal document the patient takes to a pharmacy. All competitors (Practo, Lybrate, mfine, RocketHealth) generate e-prescriptions inside the platform. Mandatory fields per Telemedicine Practice Guidelines 2020: psychiatrist full name + MCI registration number, patient name/age/address/ID verification record, drugs in CAPITAL LETTERS with dosage/frequency/duration/route, digital or photographed wet signature, date of consultation. The platform retains a copy in the patient's clinical record. Prescription PDF is delivered to the patient via an in-platform download link and WhatsApp (if enabled). List C drugs (alprazolam, diazepam, lorazepam, zolpidem, methylphenidate) are prohibited from telemedicine prescriptions by law — the platform MUST hard-block any attempt to add a List C drug to a prescription and display a clear warning naming the drug and the legal restriction. PsychiatristProfile updated with MCI registration number field. New Prescription entity added. FR-043 (e-prescription generation), FR-044 (List C hard block) added. A single centralised Data Lifecycle Service handles all three via a typed job queue. All jobs execute the same two-phase pipeline: Phase 1 erases PII, Phase 2 anonymises clinical records. Job types are: On-Demand (72h SLA, patient confirmed), Abandoned (24h SLA, no confirmation), Expiry (24h SLA, daily scan). Every job produces a PII-free audit entry retained permanently. An internal dashboard shows job status for platform admins. All users access the platform via browser. Notifications are split into three tiers: (1) OTP/authentication — SMS to mobile number, always required; (2) Booking confirmations — SMS to mobile number, plus WhatsApp if enabled; (3) Care reminders (medication, activity, follow-up nudges) — WhatsApp only. During registration, after entering their mobile number, patients see a single checkbox: "Use this number for WhatsApp notifications too?" (checked by default, same UX pattern as "billing = shipping address"). If unchecked, they may enter a different WhatsApp number or leave it blank to opt out. WhatsApp notifications can be toggled on/off at any time from the patient's profile settings (default: on).
 
@@ -83,7 +83,7 @@
 - Q: Should a separate WhatsApp number entered at registration be verified before saving? → A: No verification — store as entered. A helper note is displayed: "Make sure this number is registered on WhatsApp." Silent WhatsApp failure is acceptable since SMS to the primary mobile number is the guaranteed fallback for all critical communication (OTPs, booking confirmations). FR-001 unchanged.
 - Q: Should v1 support caregiver consultations (patient authorises a family member to attend on their behalf)? → A: Deferred to v2. Target users are self-referring tech-comfortable adults; caregiver consultations are more common in institutional settings. The authorisation flow (consent management, caregiver identity verification) adds complexity for a rare v1 use case. Caregiver Consultation already listed in Future Readiness → Additional Session Types (v2). session_type stored as string enum in v1 so the type can be added in v2 without schema migration. GAP-035 resolved.
 - Q: Does the session notes form meet MHCA 2017 Form B-1 legal documentation requirements? → A: No — FR-015b expanded to add all missing Form B-1 fields. Required (must complete before approving): presenting complaints summary, clinical observations/progress notes, treatment type, consent status. Optional: history summary, techniques used, capacity assessment, risk/benefit notes. Pre-populated/editable: medications, activity, recommended next session date. Psychiatrist must check a Form B-1 completion declaration before approving. Session record serves as the platform's Form B-1 equivalent, retained 7 years. FR-015b updated.
-- Q: Should fees vary by session type, and who can change them? → A: Three separate fees per psychiatrist — one each for Initial Assessment, Follow-Up, and Crisis/Urgent — set by the Agency Admin. Both Agency Admins (for their agency's psychiatrists) and Platform Admins (platform-wide) can bulk-update fees for all psychiatrists in one action. Individual per-psychiatrist overrides remain available after a bulk update. Fees locked into Payment record at booking; no confirmed bookings affected by subsequent changes. FR-023a updated.
+- Q: Should fees vary by session type, and who can change them? → A: Three separate fees per psychiatrist — one each for Initial Assessment, Follow-Up, and Urgent Review — set by the Agency Admin. Both Agency Admins (for their agency's psychiatrists) and Platform Admins (platform-wide) can bulk-update fees for all psychiatrists in one action. Individual per-psychiatrist overrides remain available after a bulk update. Fees locked into Payment record at booking; no confirmed bookings affected by subsequent changes. FR-023a updated.
 - Q: Should the platform guide patients on when to come back for their next session? → A: Yes — psychiatrist sets a recommended follow-up date after each session, and the platform WhatsApp-nudges the patient when that date arrives. The phase labels (Acute/Continuation/Maintenance) are not exposed in the UI — the psychiatrist simply picks a recommended interval (1 week, 2 weeks, 4 weeks, 6 weeks, 8 weeks, 3 months, 6 months, or a specific date) from the session notes form. When the date arrives, the platform sends a Tier 3 WhatsApp nudge: "Dr. [Name] recommended your next session around now — [Book Now link]." The nudge is suppressed if the patient already has a confirmed future booking. The next_follow_up_date field already exists on CareRecommendation — FR-046 wires it to the notification system. GAP-032 resolved.
 
 ---
@@ -333,6 +333,16 @@ correctly timed, personalized notifications matching their care plan and stated 
   partial access or browse-only mode exists without consent. The consent screen MUST be
   shown before any intake data is collected.
 
+  The consent screen MUST include an explicit disclosure of session recording: "Your video
+  sessions will be recorded via Zoom. The recording is transcribed and used to generate
+  your care notes, which are reviewed and approved by your psychiatrist before being saved
+  to your profile. Recordings and transcripts are stored encrypted and retained for 7 years
+  in accordance with clinical record-keeping obligations." This disclosure satisfies the
+  DPDPA 2023 requirement for informed consent before processing sensitive personal data
+  (session recordings). The patient's consent record MUST capture that recording consent
+  was given, with timestamp. The full consent text MUST remain accessible to the patient
+  from their profile settings at any time.
+
 **Session Types**
 
 - **FR-042**: The platform MUST support exactly three session types at v1 launch. All sessions
@@ -343,23 +353,31 @@ correctly timed, personalized notifications matching their care plan and stated 
   - **Initial Assessment**: The patient's first consultation with any psychiatrist on the
     platform. The platform MUST automatically classify a booking as Initial Assessment when
     the patient has no prior completed session on the platform with any psychiatrist.
-    A patient who has never completed an Initial Assessment MUST NOT be able to book a
-    Crisis/Urgent session.
 
   - **Follow-Up**: All subsequent consultations after the patient has completed at least
     one Initial Assessment. Used for all standard review appointments.
 
-  - **Crisis/Urgent**: An emergency booking available to patients who have completed at
-    least one Initial Assessment and need urgent psychiatric consultation. Crisis/Urgent
-    bookings bypass the normal matching flow — the patient is shown the next available
-    slot across all eligible psychiatrists regardless of prior matching history. Normal
-    payment and Zoom-creation flows apply unchanged.
+  - **Urgent Review**: Available only to patients who have completed at least one prior
+    Initial Assessment. Intended for acute deterioration or safety concerns in an existing
+    patient — not a general-purpose emergency or crisis service. Urgent Review bookings
+    bypass the normal matching flow — the patient is shown the next available slot across
+    all eligible psychiatrists regardless of prior matching history. Normal payment and
+    Zoom-creation flows apply unchanged.
+
+  The platform is not a crisis intervention service and does not offer emergency psychiatric
+  care to first-time users. This is consistent with Telemedicine Practice Guidelines 2020,
+  which direct telemedicine providers to refer emergency presentations to appropriate
+  emergency facilities rather than handle them via telemedicine. The platform MUST display
+  national crisis helpline numbers (iCall: 9152987821, Vandrevala Foundation: 1860-2662-345,
+  iCall WhatsApp: configured in PlatformConfiguration) prominently on: the login/registration
+  page, the booking page, and the patient dashboard. These numbers MUST be visible to all
+  users at all times — logged in or not.
 
   Each session type has a fixed duration derived from PlatformConfiguration at slot creation
   time — psychiatrists do not configure duration individually:
   - Initial Assessment: 60 minutes (default)
   - Follow-Up: 30 minutes (default)
-  - Crisis/Urgent: 60 minutes (default)
+  - Urgent Review: 60 minutes (default)
 
   The slot duration MUST be recorded on the AvailabilitySlot and the Appointment at
   creation/booking time. The Zoom meeting MUST be created with the corresponding duration.
@@ -412,6 +430,23 @@ correctly timed, personalized notifications matching their care plan and stated 
   resolution (auto-refunded or manual-review). The Agency Admin MUST be notified of all
   psychiatrist no-shows in their agency regardless of refund mode.
 
+- **FR-047**: When a patient no-show is detected (Appointment status set to
+  no-show-by-patient), the platform MUST send a two-nudge re-engagement sequence via
+  WhatsApp (subject to the patient's notification preferences):
+
+  - **Nudge 1** (24 hours after no-show detected): "We missed you at your session
+    yesterday. We hope you're okay. Whenever you're ready, you can rebook here: [booking
+    link]."
+  - **Nudge 2** (7 days after no-show, sent only if the patient has no new confirmed
+    booking at the time of sending): "It's been a week since your missed session. Your
+    mental health matters — here's your booking link whenever you're ready: [booking link]."
+
+  Nudge 2 MUST be suppressed if the patient books any session between nudge 1 and the
+  7-day mark. Both nudges respect the patient's daily notification cap (FR-020). No
+  further re-engagement nudges are sent after nudge 2 regardless of outcome. Both nudge
+  events MUST be logged in the audit trail (patient ID, appointment reference, nudge
+  number, send timestamp, delivery status).
+
 **E-Prescription**
 
 - **FR-043**: After each session, the platform MUST provide the psychiatrist with an
@@ -440,13 +475,20 @@ correctly timed, personalized notifications matching their care plan and stated 
   - A PDF is generated and made available to the patient as a download from their
     appointment history page
   - The PDF link is also sent to the patient via WhatsApp (if enabled) with the message:
-    "Your prescription from [Psychiatrist Name] is ready — [download link]"
+    "Your prescription from Dr. [Name] (MCI Reg: [number]) is ready — [download link]"
   - The prescription is retained as part of the patient's clinical record for 7 years,
     subject to the same anonymisation pipeline as other clinical records (FR-029)
 
   A prescription is optional per session — not every session results in a new prescription.
   Psychiatrists may also amend a prescription within 24 hours of finalisation to correct
   errors; the original version is retained in audit history.
+
+  Upon prescription finalisation, if the session notes form (FR-015b) "Recommended next
+  session" field is currently blank, the platform MUST auto-populate it with "2 weeks" and
+  display an inline note: "Default set to 2 weeks — recommended after new medication
+  initiation." The psychiatrist can change the interval or clear it entirely before
+  approving the session record. This links FR-043 and FR-046 to reduce the risk of a
+  psychiatrist forgetting to schedule a medication initiation review.
 
 - **FR-044**: The prescription tool MUST enforce a hard block on List C drugs — substances
   prohibited from telemedicine prescribing under the Telepsychiatry Operational Guidelines
@@ -469,10 +511,20 @@ correctly timed, personalized notifications matching their care plan and stated 
   PlatformConfiguration and editable by Platform Admins to accommodate future regulatory
   changes without a code deployment.
 
+  The prescription tool MUST also display a static regulatory reference panel — visible
+  at all times while composing a prescription — listing List B drugs and their restriction:
+  "The following drugs may only be prescribed after at least one completed prior video
+  consultation (Telepsychiatry Operational Guidelines 2020). List B drugs include (but
+  are not limited to): pregabalin, gabapentin, [Platform Admin–editable list]." This panel
+  is informational only; no automated enforcement of List B restrictions is applied in v1.
+  Automated List B enforcement (contextual block based on session history) is deferred to v2.
+  The List B drug reference list MUST be maintained in PlatformConfiguration and editable
+  by Platform Admins.
+
 **Availability Management**
 
 - **FR-023a**: Each psychiatrist MUST have three session fees (in INR) on their profile —
-  one per session type: Initial Assessment, Follow-Up, and Crisis/Urgent. All three fees
+  one per session type: Initial Assessment, Follow-Up, and Urgent Review. All three fees
   are set by the Agency Admin. The correct fee for the booked session type is displayed to
   the patient on the match list and booking screen. The fee in effect at the moment a
   booking is confirmed MUST be recorded in the Payment record and is immutable — subsequent
@@ -661,14 +713,40 @@ correctly timed, personalized notifications matching their care plan and stated 
   of the transcript. The session notes form MUST collect all fields required for MHCA 2017
   Form B-1 compliance. Required fields (psychiatrist must complete before approving):
   presenting complaints summary, clinical observations / progress notes, treatment type
-  (pharmacological / psychotherapy / combined), and consent status confirmation. Optional
+  (pharmacological / psychotherapy / combined), consent status confirmation, and an
+  identity verification checkbox: "I have verbally confirmed this patient's name and date
+  of birth at the start of this session" — satisfying the Telemedicine Practice Guidelines
+  2020 requirement for active identity confirmation at consultation time. The checkbox is
+  mandatory and its completion is audit-logged (timestamp, session reference). Optional
   fields (psychiatrist may leave blank): history summary, techniques used, capacity
-  assessment notes, risk/benefit discussion notes. Pre-populated fields (auto-filled from
-  profile/prior records, editable): medication name, dosage, frequency, activity type,
-  and recommended next session date (FR-046). The psychiatrist MUST explicitly confirm
-  Form B-1 completion by checking a declaration before the session record is approved and
-  written to the patient's care record. The session record is stored as the platform's
-  Form B-1 equivalent and retained for 7 years.
+  assessment notes, risk/benefit discussion notes, and Mental Status Examination (MSE) —
+  a single free-text area for the psychiatrist to document MSE findings across the standard
+  10 domains (appearance, behaviour, speech, mood, affect, thought process, thought content,
+  perception, cognition, insight/judgment) in their own format. MSE is a distinct labeled
+  field separate from "clinical observations / progress notes" to preserve clinical
+  distinction; a structured 10-domain MSE form is deferred to v2.
+
+  For Follow-Up and Urgent Review sessions only, the form MUST additionally show a
+  Subjective (Patient Self-Report) section with the following optional fields the
+  psychiatrist fills in based on what the patient reports at the start of the session:
+  - Medication adherence: dropdown (Yes / Partial / No) + free-text notes
+  - Side effects reported: free text
+  - Symptom trajectory since last visit: dropdown (Improved / Stable / Worsened)
+  - Sleep quality: free text (optional)
+  - Appetite: free text (optional)
+  - Significant life events since last visit: free text (optional)
+  This section is not shown for Initial Assessment sessions. All Subjective fields are
+  optional — psychiatrist may leave any or all blank.
+
+  Pre-populated fields (auto-filled from profile/prior records, editable): medication
+  name, dosage, frequency, activity type, and recommended next session date (FR-046).
+  Pre-populated read-only fields (from PatientProfile, not editable in session notes):
+  advance directive (if any) and nominated representative name and contact (if any) —
+  displayed so the psychiatrist is aware of them at every session for Form B-1
+  documentation purposes. The psychiatrist MUST explicitly confirm Form B-1 completion
+  by checking a declaration before the session record is approved and written to the
+  patient's care record. The session record is stored as the platform's Form B-1
+  equivalent and retained for 7 years.
 - **FR-015c**: If no transcript is received from Zoom within 60 minutes of a session's
   scheduled end time, the system MUST: (1) display a notice to the psychiatrist on the
   patient's record stating the transcript was not received, (2) prompt them to enter
@@ -872,24 +950,38 @@ and compliance across all deletion scenarios.
   - Rating percentile band labels (default: Top 5%, Top 10%, Top 25%, Top 50%)
   - Match result list size (default: 5)
   - "Closest available" match score threshold (default: configurable per deployment)
-  - Session type durations (default: Initial Assessment = 60 min, Follow-Up = 30 min, Crisis/Urgent = 60 min)
+  - Session type durations (default: Initial Assessment = 60 min, Follow-Up = 30 min, Urgent Review = 60 min)
   - Maximum slot publication horizon (default: 3 months ahead of today)
   - Psychiatrist no-show refund mode (default: auto; options: auto, manual-review)
   - Psychiatrist no-show manual review SLA (default: 24 hours)
   - List C prohibited drug list (default: alprazolam, diazepam, lorazepam, nitrazepam,
     chlordiazepoxide, zolpidem, methylphenidate, modafinil, phenobarbitone, depot
     antipsychotics — editable by Platform Admins to accommodate regulatory changes)
-- **FR-036**: The platform MUST provide a self-service data export option in the patient's
-  profile settings, satisfying the constitution's data portability requirement and DPDPA 2023.
+- **FR-036**: The platform MUST provide a unified self-service records request in the
+  patient's profile settings, satisfying two distinct legal obligations in a single flow:
+  (1) DPDPA 2023 data portability right, and (2) MHCA 2017 Section 25 right to access
+  clinical records (Form A equivalent). One request button covers both — delivering within
+  72 hours satisfies the stricter DPDPA deadline and well within the MHCA 2017 15-day
+  obligation.
+
   On request: (1) the platform enqueues an async export job; (2) the patient receives an
-  immediate on-screen acknowledgement; (3) within 72 hours the platform delivers a secure,
-  time-limited download link via WhatsApp (if enabled) and SMS. The export package MUST
-  include: intake questionnaire responses, all care recommendations, appointment history,
-  notification preferences, and the patient's own submitted SessionFeedback records
-  (their ratings and qualitative answers per session — the patient authored this data and
-  is entitled to it under DPDPA 2023). Raw session transcripts are excluded from patient
-  export — they are retained as clinical records subject to the Data Lifecycle Service
-  (FR-028).
+  immediate on-screen acknowledgement citing both legal rights being fulfilled; (3) within
+  72 hours the platform delivers a secure, time-limited download link via WhatsApp (if
+  enabled) and SMS.
+
+  The export package MUST include:
+  - Intake questionnaire responses
+  - All approved session notes / care recommendations (all psychiatrists)
+  - All issued prescriptions (PDF copies)
+  - Appointment history
+  - Notification preferences
+  - The patient's own submitted SessionFeedback records
+
+  Raw Zoom transcripts are excluded — they are intermediate processing artifacts, not
+  formal clinical records, and are retained under the Data Lifecycle Service (FR-028).
+  The approved session notes (CareRecommendation records) are the formal clinical record
+  and are included.
+
   The download link MUST expire after 48 hours. Export jobs MUST be visible in the Platform
   Admin deletion dashboard (FR-033) for audit purposes.
 - **FR-032**: The Data Lifecycle Service MUST expose its job queue status to the Platform
@@ -909,7 +1001,10 @@ and compliance across all deletion scenarios.
     three intervals before the session: 48 hours, 2 hours, and 15 minutes. Only reminders
     whose scheduled time is still in the future at the moment of booking confirmation are
     queued — windows that have already passed are skipped entirely. All reminder intervals
-    are stored in PlatformConfiguration and editable by Platform Admins.
+    are stored in PlatformConfiguration and editable by Platform Admins. All Tier 2
+    messages that reference a specific psychiatrist MUST include the psychiatrist's MCI
+    registration number alongside their name — e.g. "Dr. [Name] (MCI Reg: [number])" —
+    as required by the Telemedicine Practice Guidelines 2020.
   - **Tier 3 — Care reminders** (medication reminders, activity nudges, follow-up prompts):
     Delivered via WhatsApp only. Sent exclusively if the patient has a resolved WhatsApp
     number and WhatsApp notifications are toggled on. Never sent via SMS.
@@ -931,6 +1026,19 @@ and compliance across all deletion scenarios.
 - **FR-021a**: Patients MUST also be able to opt in or out of each Tier 3 care reminder
   category (medication reminders, activity nudges, appointment follow-up prompts)
   independently, as long as WhatsApp notifications are globally toggled on.
+
+- **FR-021b**: When a prescription is finalised (FR-043), the platform MUST display each
+  medication to the patient in their profile under a "My Medications" section. For each
+  medication the patient CAN set a daily reminder time (e.g. 08:00). Once set, the
+  platform sends a Tier 3 WhatsApp reminder each day at that time: "Time for your
+  [DRUG NAME] — [dosage], [frequency]. Prescribed by Dr. [Name]." Reminders run
+  automatically for the prescription duration (as entered in FR-043) and stop on the
+  final day without requiring any patient action. If the patient does not set a reminder
+  time for a medication, no reminder is sent for that medication. The patient can update
+  or cancel a reminder from their profile at any time. Multiple active prescriptions with
+  overlapping durations each schedule their own independent reminders. All medication
+  reminder events are subject to the patient's daily notification cap (FR-020) and the
+  global WhatsApp toggle (FR-021).
 - **FR-022**: If a WhatsApp message fails to deliver, the system MUST log the failure
   with timestamp and error reason in the audit trail. There is no SMS fallback for
   WhatsApp failures. Failures are surfaced in the patient's profile for manual follow-up.
@@ -965,7 +1073,7 @@ and compliance across all deletion scenarios.
   only), percentile rank (computed relative to all active psychiatrists — shown to patients),
   and eligibility status (eligible / ineligible per FR-039 rules).
 - **AvailabilitySlot**: A defined time window on a psychiatrist's calendar with status
-  (open, booked, blocked), session_type (Initial Assessment, Follow-Up, Crisis/Urgent),
+  (open, booked, blocked), session_type (Initial Assessment, Follow-Up, Urgent Review),
   and duration in minutes (derived from session_type via PlatformConfiguration at creation
   time — not set manually). Manageable by both the psychiatrist and agency admin.
 - **SessionTranscript**: Full text transcript of a Zoom session received via webhook;
@@ -978,7 +1086,7 @@ and compliance across all deletion scenarios.
   specific date/time; has status (scheduled, completed, cancelled-by-patient,
   cancelled-by-patient-rescheduled, cancelled-by-psychiatrist, cancelled-by-deactivation,
   no-show-by-psychiatrist, no-show-by-patient), session_type (Initial Assessment,
-  Follow-Up, Crisis/Urgent), and records the Zoom meeting ID and join URL. All sessions
+  Follow-Up, Urgent Review), and records the Zoom meeting ID and join URL. All sessions
   are Zoom video in v1. The cancelled-by-patient-rescheduled status distinguishes a
   rescheduled cancellation from a pure cancellation. The no-show-by-psychiatrist status
   is set automatically by FR-045 when the psychiatrist's presence is absent from Zoom
@@ -1005,7 +1113,11 @@ and compliance across all deletion scenarios.
 - **PatientProfile**: Aggregated view of a patient's full history: intake responses, all
   appointments across all psychiatrists (past and upcoming), care recommendations from all
   psychiatrists, and current active care plan. No "active psychiatrist" reference — access
-  is determined dynamically by booking recency per FR-018a.
+  is determined dynamically by booking recency per FR-018a. Includes two optional MHCA 2017
+  fields the patient can set from profile settings: `advance_directive` (free text, nullable)
+  and `nominated_representative_name` + `nominated_representative_contact` (text, nullable).
+  These carry no platform permissions or automated actions — they are documentation fields
+  surfaced to psychiatrists in session notes (FR-015b) for Form B-1 compliance.
 - **NotificationPreference**: Per-patient settings: resolved WhatsApp number (nullable —
   same as mobile if checkbox was ticked, different number, or null if opted out);
   global WhatsApp toggle (boolean, default true); preferred delivery times per Tier 3
@@ -1215,7 +1327,7 @@ separate consultation_mode field in v2 without a schema migration that breaks ex
 
 ### Additional Session Types (v2)
 
-V1 supports three session types: Initial Assessment, Follow-Up, Crisis/Urgent.
+V1 supports three session types: Initial Assessment, Follow-Up, Urgent Review.
 V2 may introduce:
 - **Medication Review**: A structured session specifically for reviewing and adjusting
   an existing medication regimen. Distinct from a general Follow-Up in documentation
@@ -1227,3 +1339,20 @@ V2 may introduce:
 **What must be designed correctly in v1**: The session_type field MUST be stored as a
 string enum (not a boolean) so additional types can be added in v2 without altering
 existing Appointment or AvailabilitySlot records.
+
+### Investigation Report Attachments (v2)
+
+V1 has no file upload mechanism. Psychiatrists ask patients to email investigation reports
+(blood tests, ECG, thyroid function, etc.) directly outside the platform; results can be
+referenced in the free-text clinical observations field of FR-015b. V2 will introduce a
+file attachment feature on session records, covering: secure upload (PDF/image), storage
+with AES-256 encryption, virus scanning, 7-year retention, and inclusion in the anonymisation
+pipeline (FR-029). The CareRecommendation entity should be designed with a nullable
+`attachments` relationship so v2 can add this without a breaking schema change.
+
+### MSE Structured Assessment (v2)
+
+V1 captures Mental Status Examination as a single optional free-text field in FR-015b.
+V2 will upgrade this to a structured 10-domain form (appearance, behaviour, speech, mood,
+affect, thought process, thought content, perception, cognition, insight/judgment) once
+real clinical workflow patterns are established from v1 usage.

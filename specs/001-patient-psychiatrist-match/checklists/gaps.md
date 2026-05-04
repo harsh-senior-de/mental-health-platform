@@ -6,9 +6,10 @@ before asking new questions.
 
 **Last Updated**: 2026-05-03
 **Total Gaps**: 50
-**Resolved**: 35
-**Open Critical**: 3
-**Open Important**: 9
+**Resolved**: 50
+**Open Critical**: 0
+**Open Important**: 0
+**Open Low**: 0
 **Open Low**: 3
 
 ---
@@ -192,7 +193,7 @@ before implementation. Noted as pre-implementation decision in FR-041.
 **Status**: RESOLVED
 **Session**: 11 Q1
 **Answer**: Fixed per session type, stored in PlatformConfiguration. Initial Assessment =
-60 min, Follow-Up = 30 min, Crisis/Urgent = 60 min. Duration recorded on AvailabilitySlot
+60 min, Follow-Up = 30 min, Urgent Review = 60 min. Duration recorded on AvailabilitySlot
 and Appointment at creation/booking time. Zoom meeting created with corresponding duration.
 Session end time = start + duration (used by FR-015c and FR-019).
 **FRs Updated**: FR-042 updated with duration rules; FR-035 updated (PlatformConfiguration)
@@ -346,7 +347,7 @@ PlatformConfiguration. invoice_number field on Payment entity, immutable once is
 **Status**: RESOLVED
 **Session**: 10 Q1
 **Answer**: Three session types at v1: Initial Assessment (video-only mandatory, first consult
-on platform), Follow-Up (any mode, all subsequent standard sessions), Crisis/Urgent (video-
+on platform), Follow-Up (any mode, all subsequent standard sessions), Urgent Review (video-
 preferred, emergency booking bypassing normal slot selection, only for patients with ≥1 prior
 completed session). FR-042 added; AvailabilitySlot and Appointment entities updated with
 session_type field.
@@ -413,7 +414,7 @@ CareRecommendation wired to notification system via FR-046.
 **Status**: RESOLVED
 **Session**: 13 Q2
 **Answer**: Three separate fees per psychiatrist (Initial Assessment, Follow-Up,
-Crisis/Urgent) set by Agency Admin. Agency Admins can bulk-update fees for all
+Urgent Review) set by Agency Admin. Agency Admins can bulk-update fees for all
 psychiatrists in their agency; Platform Admins can bulk-update platform-wide.
 Individual overrides remain available after bulk update. Fees locked at booking.
 **FRs Updated**: FR-023a updated
@@ -450,224 +451,204 @@ no schema migration.
 ## CRITICAL Gaps — Research vs. Spec Cross-Reference (2026-05-04)
 
 ### GAP-036: List B Drug Enforcement Missing
-**Status**: OPEN
-**Session**: TBD
-**Impact**: Regulatory violation. Telepsychiatry Operational Guidelines 2020 define List B
-drugs (pregabalin, gabapentin, certain antipsychotic add-ons) that can only be prescribed
-in follow-up sessions after at least one prior video consultation. The spec enforces List C
-(FR-044) but has zero coverage of List B. A psychiatrist could legally violate the
-guidelines by prescribing a List B drug in a patient's first session.
-**Affected FRs**: FR-044 — needs List B enforcement added
-**Affected Entities**: Prescription, PlatformConfiguration (List B drug list)
-**Research ref**: Section 3.1
+**Status**: RESOLVED
+**Session**: 14 Q1
+**Answer**: No automated enforcement in v1 — drug database/formulary required for clean
+enforcement and deferred to v2. V1 approach: prescription tool shows a static regulatory
+reference panel (always visible while composing) listing List B drugs and their restriction
+("may only be prescribed after at least one prior video consultation"). Panel is
+informational only. List B reference list stored in PlatformConfiguration, editable by
+Platform Admins. Automated contextual block (based on session history) deferred to v2.
+**FRs Updated**: FR-044 updated (List B reference panel added)
+**Entities Updated**: PlatformConfiguration (List B drug list added)
 
 ---
 
 ### GAP-037: Crisis Pathway for New Patients — Constitution Violation
-**Status**: OPEN
-**Session**: TBD
-**Impact**: Constitution violation. FR-042 requires a completed Initial Assessment before
-a Crisis/Urgent booking. A brand-new patient presenting in crisis cannot use the
-Crisis/Urgent path — they must book a standard Initial Assessment and wait for a slot.
-The constitution states "Crisis pathways always reachable." This design may directly
-violate that principle for first-time users.
-**Affected FRs**: FR-042 — Crisis/Urgent access rules need review
-**Affected Entities**: Appointment (session_type eligibility rules)
-**Research ref**: Section 6.1
+**Status**: RESOLVED
+**Session**: 14 Q2
+**Answer**: Platform is not a crisis intervention service — consistent with Telemedicine
+Practice Guidelines 2020 which direct emergency presentations to emergency facilities, not
+telemedicine. "Urgent Review" session type renamed to "Urgent Review" — available only to
+returning patients (≥1 prior completed session) for acute deterioration. New patients in
+crisis are served by always-visible national helpline numbers (iCall, Vandrevala Foundation)
+displayed on login page, booking page, and patient dashboard. Constitution principle
+"Crisis pathways always reachable" satisfied by permanent helpline display, not platform
+session type.
+**FRs Updated**: FR-042 updated (rename + helpline display requirement added)
+**Entities Updated**: None (session_type enum value rename: Urgent Review → Urgent Review)
 
 ---
 
 ### GAP-038: Session Recording Consent Not Explicit
-**Status**: OPEN
-**Session**: TBD
-**Impact**: DPDPA 2023 / regulatory gap. The platform records every session via Zoom and
-uses the transcript to generate care recommendations (FR-015). Patients must give
-informed consent specifically for session recording and transcription — this is processing
-of sensitive personal data under DPDPA 2023. FR-005 covers health data consent generically
-but does not mention that sessions are recorded and transcribed. DocVita explicitly states
-its sessions are "unrecorded" — our approach is the opposite and must be consented to.
-**Affected FRs**: FR-005 — needs explicit recording consent clause
-**Affected Entities**: Patient (consent record)
-**Research ref**: Section 1.4 (DocVita explicitly unrecorded)
+**Status**: RESOLVED
+**Session**: 14 Q3
+**Answer**: Recording disclosure added to the existing FR-005 registration consent screen
+(Option B — no separate pre-session screen). Consent text explicitly states sessions are
+recorded via Zoom, transcript used to generate care notes reviewed by psychiatrist, stored
+encrypted 7 years. Patient consent record captures recording consent with timestamp. Full
+consent text accessible from patient profile at any time. Satisfies DPDPA 2023 informed
+consent requirement for processing of sensitive personal data.
+**FRs Updated**: FR-005 updated
+**Entities Updated**: Patient (consent record — recording consent timestamp)
 
 ---
 
 ## IMPORTANT Gaps — Research vs. Spec Cross-Reference (2026-05-04)
 
 ### GAP-039: Advance Directive and Nominated Representative Missing from Form B-1
-**Status**: OPEN
-**Session**: TBD
-**Impact**: MHCA 2017 legal requirement. Form B-1 requires "advance directive and nominated
-representative information" per encounter. Under MHCA 2017 (Sections 5–12), every
-psychiatric patient has a legal right to make an advance directive and nominate a
-representative. FR-015b's expanded field list does not include either. This is a legal
-right, not just a documentation field.
-**Affected FRs**: FR-015b — needs advance directive and nominated rep fields
-**Affected Entities**: CareRecommendation, PatientProfile (advance directive and rep fields)
-**Research ref**: Section 5
+**Status**: RESOLVED
+**Session**: 14 Q4
+**Answer**: Two optional fields added to PatientProfile (`advance_directive`,
+`nominated_representative_name`, `nominated_representative_contact`). Patient sets them
+from profile settings. Session notes form (FR-015b) shows them as pre-populated read-only
+fields at every session for Form B-1 documentation. No platform permissions or automated
+actions — documentation only. Nominated representative has no platform access and does
+not join sessions (platform is direct consultation only).
+**FRs Updated**: FR-015b updated
+**Entities Updated**: PatientProfile (advance_directive + nominated_representative fields)
 
 ---
 
 ### GAP-040: Patient No-Show — No Re-engagement Nudge
-**Status**: OPEN
-**Session**: TBD
-**Impact**: Clinical continuity. Research (Section 6.3) explicitly states "no-show detection
-should trigger patient re-engagement — high dropout documented in Indian telepsychiatry."
-The spec marks patient no-shows as no-show-by-patient status but sends zero re-engagement
-notification. Given the 67.77% dropout stat, this is a direct missed opportunity to reduce
-churn that the platform already has the infrastructure for.
-**Affected FRs**: New FR required for patient no-show re-engagement notification
-**Affected Entities**: Appointment (no-show-by-patient status), NotificationEvent
-**Research ref**: Section 4.4, 6.3
+**Status**: RESOLVED
+**Session**: 14 Q5
+**Answer**: Two-nudge re-engagement sequence added as FR-047. Nudge 1: 24h after no-show
+("we missed you, rebook when ready"). Nudge 2: 7 days later if no new booking made
+("it's been a week, your mental health matters"). Nudge 2 suppressed if patient books
+between nudge 1 and 7-day mark. Both respect daily notification cap (FR-020). No further
+nudges after nudge 2. Both events audit-logged.
+**FRs Updated**: FR-047 added
+**Entities Updated**: None (reuses existing NotificationEvent and WhatsApp delivery)
 
 ---
 
 ### GAP-041: MHCA 2017 Records Access Right — 15-Day Obligation Not Modelled
-**Status**: OPEN
-**Session**: TBD
-**Impact**: Legal compliance. MHCA 2017 gives patients the right to request their clinical
-records via Form A; the provider must respond within 15 days. The spec covers DPDPA 2023
-data export (FR-036, 72h) but this is a separate and distinct legal obligation under
-MHCA 2017 covering clinical records. The two rights have different scopes (patient-owned
-data vs. full clinical record) and different timelines (72h vs. 15 days).
-**Affected FRs**: FR-036 — needs MHCA Form A records access path alongside DPDPA export
-**Affected Entities**: None new — existing clinical records already stored
-**Research ref**: Section 5
+**Status**: RESOLVED
+**Session**: 14 Q6
+**Answer**: FR-036 extended to a unified records request covering both DPDPA 2023 (72h)
+and MHCA 2017 Form A (15 days) in one flow. 72h delivery satisfies both deadlines. Package
+expanded to include full clinical records: approved session notes, all issued prescriptions,
+intake responses, appointment history, feedback records. Raw Zoom transcripts remain
+excluded (intermediate artifact, not formal clinical record). Single button in patient
+profile settings.
+**FRs Updated**: FR-036 updated
+**Entities Updated**: None
 
 ---
 
 ### GAP-042: Auto Follow-Up Suggestion After New Prescription Not Wired
-**Status**: OPEN
-**Session**: TBD
-**Impact**: Clinical safety. Research (Section 6.3): "After any new medication initiation:
-trigger 1–2 week medication initiation review." FR-046 is purely manual — psychiatrist
-manually picks a follow-up interval in session notes. There is no link between FR-043
-(prescription finalised) and FR-046 (follow-up interval). When a new prescription is
-created, the session notes form should auto-suggest "1–2 weeks" as the recommended
-follow-up interval.
-**Affected FRs**: FR-043, FR-046 — need to be linked
-**Affected Entities**: Prescription, CareRecommendation
-**Research ref**: Section 6.3
+**Status**: RESOLVED
+**Session**: 14 Q7
+**Answer**: FR-043 updated — upon prescription finalisation, if the session notes
+"Recommended next session" field is blank, auto-populate it with "2 weeks" and show
+inline note "Default set to 2 weeks — recommended after new medication initiation."
+Psychiatrist can change or clear it. Links FR-043 and FR-046 to reduce missed medication
+initiation review risk.
+**FRs Updated**: FR-043 updated
+**Entities Updated**: None
 
 ---
 
 ### GAP-043: MCI Number Required on WhatsApp Message Content
-**Status**: OPEN
-**Session**: TBD
-**Impact**: Regulatory. Research (Section 3.2): MCI registration number must appear on
-"prescriptions, websites, emails, and WhatsApp messages." The spec captures MCI reg on
-prescription PDFs (FR-043) but WhatsApp message content (prescription delivery message,
-session confirmations sent from the platform on behalf of a psychiatrist) does not include
-the MCI number. This is a Telemedicine Guidelines 2020 requirement.
-**Affected FRs**: FR-043, FR-019 — prescription WhatsApp message and session-related
-messages need MCI number in content
-**Affected Entities**: None new
-**Research ref**: Section 3.2
+**Status**: RESOLVED
+**Session**: 14 Q8
+**Answer**: MCI registration number added to both message types. FR-019 Tier 2: all
+messages referencing a specific psychiatrist must use "Dr. [Name] (MCI Reg: [number])"
+format. FR-043 prescription delivery WhatsApp template updated to include MCI number.
+Satisfies Telemedicine Practice Guidelines 2020.
+**FRs Updated**: FR-019, FR-043 updated
+**Entities Updated**: None
 
 ---
 
 ### GAP-044: Mental Status Examination (MSE) Missing from Session Notes
-**Status**: OPEN
-**Session**: TBD
-**Impact**: Clinical standard. MSE is a 10-domain structured assessment (appearance,
-attitude/behaviour, speech, mood, affect, thought process, thought content, perception,
-cognition, insight/judgment) mandatory in Indian psychiatric practice for both initial
-and follow-up sessions per IPS Consensus. FR-015b has "clinical observations/progress
-notes" as a required field — but MSE is a specific structured assessment, not free-text
-observations. These are clinically distinct.
-**Affected FRs**: FR-015b — MSE should be at least an optional structured field
-**Affected Entities**: CareRecommendation
-**Research ref**: Sections 2.1, 2.2
+**Status**: RESOLVED
+**Session**: 14 Q9
+**Answer**: MSE added to FR-015b as a distinct optional free-text area — separate labeled
+field from "clinical observations / progress notes" to preserve clinical distinction.
+Psychiatrist documents all 10 MSE domains in their own format. Structured 10-domain MSE
+form deferred to v2 once real clinical workflow is understood.
+**FRs Updated**: FR-015b updated
+**Entities Updated**: CareRecommendation (MSE free-text field)
 
 ---
 
 ### GAP-045: Prescription → Medication Reminder Link Undefined
-**Status**: OPEN
-**Session**: TBD
-**Impact**: Product coherence. The platform promises medication reminders as Tier 3
-WhatsApp notifications (FR-021, original user description). FR-043 generates prescriptions
-with drug names, dosage, and frequency. But no FR links prescription finalisation to
-medication reminder scheduling. How does the notification engine know what to remind about,
-at what frequency, for how long? The two systems are completely disconnected in the spec.
-**Affected FRs**: FR-021, FR-043 — need explicit connection
-**Affected Entities**: Prescription, NotificationEvent
-**Research ref**: Section 2.4
+**Status**: RESOLVED
+**Session**: 14 Q10
+**Answer**: FR-021b added. On prescription finalisation, medications appear in patient's
+"My Medications" profile section. Patient sets daily reminder time per medication (optional).
+Platform sends Tier 3 WhatsApp reminder at that time daily for the prescription duration,
+then stops automatically. No reminder if patient doesn't set a time. Patient can
+update/cancel from profile. Respects daily cap (FR-020) and global WhatsApp toggle (FR-021).
+**FRs Updated**: FR-021b added
+**Entities Updated**: Prescription (drives reminder schedule); NotificationEvent (medication reminder type)
 
 ---
 
 ### GAP-046: Patient Self-Report Fields Missing from Follow-Up Notes
-**Status**: OPEN
-**Session**: TBD
-**Impact**: Clinical completeness. Research (Section 2.2) specifies the standard follow-up
-agenda: medication adherence, side effects, symptom trajectory, sleep, appetite, life
-events since last visit. These map to the SOAP "Subjective" component. FR-015b's
-required/optional fields cover the clinician's observations (Objective, Assessment, Plan)
-but miss the patient self-report dimension (Subjective). This is a structured clinical
-standard, not a nice-to-have.
-**Affected FRs**: FR-015b — Subjective SOAP fields should be added (adherence, side
-effects, symptom trajectory, sleep, appetite)
-**Affected Entities**: CareRecommendation
-**Research ref**: Section 2.2
+**Status**: RESOLVED
+**Session**: 14 Q11
+**Answer**: Subjective (Patient Self-Report) section added to FR-015b for Follow-Up and
+Urgent Review sessions only (not Initial Assessment). Fields: medication adherence
+(dropdown + notes), side effects (free text), symptom trajectory (dropdown), sleep
+quality, appetite, significant life events. All optional. Psychiatrist fills based on
+patient's report at session start.
+**FRs Updated**: FR-015b updated
+**Entities Updated**: CareRecommendation (Subjective SOAP fields)
 
 ---
 
 ### GAP-047: Identity Verification at Consultation Time Undefined
-**Status**: OPEN
-**Session**: TBD
-**Impact**: Regulatory. Research (Section 2.1): "Identity confirmation is the first step"
-of any telemedicine consultation. FR-043 states the prescription auto-populates "a record
-of the identity verification performed at consultation time — auto-populated from
-PatientProfile." But no FR defines HOW identity is verified during a session. OTP at
-login may not be sufficient — the Telemedicine Guidelines 2020 require the psychiatrist
-to actively confirm the patient's identity at the start of each session.
-**Affected FRs**: FR-043, FR-042 — identity verification step needs to be defined
-**Affected Entities**: Appointment, Prescription
-**Research ref**: Section 2.1
+**Status**: RESOLVED
+**Session**: 14 Q12
+**Answer**: Mandatory identity verification checkbox added to FR-015b required fields:
+"I have verbally confirmed this patient's name and date of birth at the start of this
+session." Psychiatrist cannot approve session record without checking it. Checkbox
+completion is audit-logged with timestamp and session reference. Satisfies Telemedicine
+Practice Guidelines 2020 active identity confirmation requirement.
+**FRs Updated**: FR-015b updated
+**Entities Updated**: None (audit log entry)
 
 ---
 
 ## LOW / REVIEW Gaps — Research vs. Spec Cross-Reference (2026-05-04)
 
 ### GAP-048: Video-Only Policy for All v1 Sessions — Review
-**Status**: OPEN
-**Session**: TBD
-**Impact**: Product scope review. Regulatory requirement is video-only for INITIAL
-consultations only. Follow-ups are legally permitted via audio or text. The spec chose
-video-only for ALL sessions in v1 for simplicity (FR-042). RocketHealth, the most
-clinically structured competitor, offers audio/video/text for follow-ups. This eliminates
-a legitimate feature for stable follow-up patients — worth consciously confirming.
-**Affected FRs**: FR-042 — scope decision, not a bug
-**Affected Entities**: None
-**Research ref**: Sections 1.5, 2.3
+**Status**: RESOLVED
+**Session**: 14 Q13
+**Answer**: Confirmed by design — video-only (Zoom) for all three session types in v1.
+Audio-only for Follow-Up remains deferred to v2 as already noted in Future Readiness.
+No spec change required.
+**FRs Updated**: None
+**Entities Updated**: None
 
 ---
 
 ### GAP-049: Medication Initiation Review as Distinct Session Type
-**Status**: OPEN
-**Session**: TBD
-**Impact**: Clinical differentiation. Research (Section 2.3) identifies "Medication
-Initiation Review" (15–30 min, 1–2 weeks post-new-medication) as a distinct session type
-in Indian psychiatric practice. The spec merges it with Follow-Up (30 min). A 10-day
-post-antipsychotic-start review is clinically different from a routine 6-week follow-up —
-different agenda, different documentation focus, potentially different fee. Worth deciding
-if v1 needs a 4th session type or if Follow-Up is sufficient.
-**Affected FRs**: FR-042 — may need a 4th session type
-**Affected Entities**: AvailabilitySlot, Appointment (session_type enum)
-**Research ref**: Section 2.3
+**Status**: RESOLVED
+**Session**: 14 Q14
+**Answer**: Kept merged into Follow-Up by design. Session mechanics are identical
+(Zoom, same notes form, same payment flow). 4th session type adds enum, fee, and
+availability complexity with no v1 functional benefit. Psychiatrist context (2-week
+auto-suggested interval post-prescription via FR-042/FR-043) is sufficient signal.
+Distinct session type deferred to v2.
+**FRs Updated**: None
+**Entities Updated**: None
 
 ---
 
 ### GAP-050: Investigation Reports Attachment Not Modelled
-**Status**: OPEN
-**Session**: TBD
-**Impact**: Clinical completeness. Form B-1 requires "investigation reports" per encounter.
-Psychiatrists commonly order blood tests, ECG, and thyroid function and need to reference
-results in session records. The spec has no mechanism for attaching or referencing
-investigation reports in a session record. Probably out of v1 scope but worth an explicit
-decision.
-**Affected FRs**: FR-015b — investigation results field/attachment missing
-**Affected Entities**: CareRecommendation
-**Research ref**: Sections 2.1, 5
+**Status**: RESOLVED
+**Session**: 14 Q15
+**Answer**: Deferred to v2. In v1, psychiatrists ask patients to email investigation
+reports directly — outside the platform. Psychiatrist can reference results in the
+free-text clinical observations field of FR-015b. File upload infrastructure (storage,
+validation, encryption, retention, anonymisation) is a meaningful build not justified
+for v1. Added to Future Readiness section.
+**FRs Updated**: None (Future Readiness note added)
+**Entities Updated**: None
 
 ---
 
@@ -717,7 +698,7 @@ decision.
 | GAP-025 | RESOLVED | Session 13 Q5 | No verification; helper note shown; SMS is guaranteed fallback |
 | GAP-026 | RESOLVED | Session 13 Q6 | Hard gate — decline deletes partial account; no browse mode; FR-005 updated |
 | GAP-027 | RESOLVED | Session 13 Q7 | FORMAT PREFIX/FY/SEQ; resets April 1; configurable prefix; Payment.invoice_number; FR-041 |
-| GAP-028 | RESOLVED | Session 10 Q1 | Three types: Initial Assessment (video-only), Follow-Up (any mode), Crisis/Urgent (video-preferred); FR-042 added |
+| GAP-028 | RESOLVED | Session 10 Q1 | Three types: Initial Assessment (video-only), Follow-Up (any mode), Urgent Review (video-preferred); FR-042 added |
 | GAP-029 | RESOLVED | Session 10 Q2 | Video only in v1; audio-only + text-based modes deferred to v2 Future Readiness |
 | GAP-030 | RESOLVED | Session 10 Q3 | E-prescription tool added; FR-043; MCI reg number on PsychiatristProfile; Prescription entity added |
 | GAP-031 | RESOLVED | Session 10 Q3 | List C hard block; FR-044; List C list in PlatformConfiguration |
@@ -725,18 +706,18 @@ decision.
 | GAP-033 | RESOLVED | Session 13 Q2 | 3 fees per psychiatrist by session type; bulk update for Agency Admin + Platform Admin; FR-023a |
 | GAP-034 | RESOLVED | Session 13 Q3 | FR-015b expanded with Form B-1 fields; declaration checkbox before approval; 7-year retention |
 | GAP-035 | RESOLVED | Session 13 Q4 | Deferred to v2; string enum session_type in v1 enables no-migration addition later |
-| GAP-036 | OPEN | TBD | — |
-| GAP-037 | OPEN | TBD | — |
-| GAP-038 | OPEN | TBD | — |
-| GAP-039 | OPEN | TBD | — |
-| GAP-040 | OPEN | TBD | — |
-| GAP-041 | OPEN | TBD | — |
-| GAP-042 | OPEN | TBD | — |
-| GAP-043 | OPEN | TBD | — |
-| GAP-044 | OPEN | TBD | — |
-| GAP-045 | OPEN | TBD | — |
-| GAP-046 | OPEN | TBD | — |
-| GAP-047 | OPEN | TBD | — |
-| GAP-048 | OPEN | TBD | — |
-| GAP-049 | OPEN | TBD | — |
-| GAP-050 | OPEN | TBD | — |
+| GAP-036 | RESOLVED | Session 14 Q1 | No v1 enforcement (deferred to v2); static List B reference panel in prescription tool; PlatformConfiguration |
+| GAP-037 | RESOLVED | Session 14 Q2 | Renamed to Urgent Review (returning patients only); helplines always visible; not a crisis service; FR-042 |
+| GAP-038 | RESOLVED | Session 14 Q3 | Recording disclosure added to FR-005 consent screen; consent record timestamps it; DPDPA 2023 satisfied |
+| GAP-039 | RESOLVED | Session 14 Q4 | Optional profile fields for advance directive + nominated rep; read-only in session notes; documentation only |
+| GAP-040 | RESOLVED | Session 14 Q5 | Two-nudge re-engagement: 24h + 7 days (suppressed if booked); FR-047 added |
+| GAP-041 | RESOLVED | Session 14 Q6 | FR-036 unified: covers DPDPA + MHCA Form A in one 72h flow; package expanded to full clinical records |
+| GAP-042 | RESOLVED | Session 14 Q7 | FR-043 auto-populates "2 weeks" in follow-up field on prescription finalisation if blank; psychiatrist can override |
+| GAP-043 | RESOLVED | Session 14 Q8 | MCI Reg added to FR-019 Tier 2 messages and FR-043 prescription WhatsApp template |
+| GAP-044 | RESOLVED | Session 14 Q9 | MSE added to FR-015b as optional free-text area; distinct from clinical observations; structured form deferred to v2 |
+| GAP-045 | RESOLVED | Session 14 Q10 | FR-021b added; patient sets reminder time per medication; auto-runs for prescription duration; FR-021/FR-043 linked |
+| GAP-046 | RESOLVED | Session 14 Q11 | Subjective SOAP section added to FR-015b for Follow-Up/Urgent Review; adherence, side effects, trajectory, sleep, appetite, life events |
+| GAP-047 | RESOLVED | Session 14 Q12 | Mandatory identity verification checkbox in FR-015b; audit-logged; satisfies Telemedicine Guidelines 2020 |
+| GAP-048 | RESOLVED | Session 14 Q13 | Confirmed video-only for all v1 session types; audio-only Follow-Up deferred to v2 |
+| GAP-049 | RESOLVED | Session 14 Q14 | Kept merged into Follow-Up; 4th session type deferred to v2; mechanics identical in v1 |
+| GAP-050 | RESOLVED | Session 14 Q15 | Deferred to v2; v1 psychiatrist asks patient to email reports; results noted in free-text clinical observations |
