@@ -4,13 +4,12 @@
 Clarification sessions MUST read this file first and resolve OPEN gaps in priority order
 before asking new questions.
 
-**Last Updated**: 2026-05-03
-**Total Gaps**: 50
+**Last Updated**: 2026-05-04
+**Total Gaps**: 52
 **Resolved**: 50
 **Open Critical**: 0
-**Open Important**: 0
+**Open Important**: 2
 **Open Low**: 0
-**Open Low**: 3
 
 ---
 
@@ -652,6 +651,41 @@ for v1. Added to Future Readiness section.
 
 ---
 
+## IMPORTANT Gaps — Research vs. Spec Re-validation (2026-05-04)
+
+### GAP-051: Investigations Ordered Not Capturable in Session Notes
+**Status**: OPEN
+**Session**: TBD
+**Impact**: Form B-1 compliance. MHCA 2017 Form B-1 minimum content includes "investigation
+reports." Standard psychiatric practice requires documenting what investigations were
+ordered (hemogram, thyroid function, LFT/RFT, lipid profile, ECG, brain CT/MRI etc.) as
+part of the session record. FR-015b has no dedicated field for this — only a general
+"clinical observations" free-text field. The Future Readiness note (GAP-050) addresses
+attachment of received reports, not documentation of what was ordered. These are distinct:
+one is "I ordered these tests" (should be in session record), the other is "here are the
+results" (file attachment, v2).
+**Affected FRs**: FR-015b — needs an "Investigations ordered" optional field
+**Affected Entities**: CareRecommendation
+**Research ref**: Section 2.1 (step 13), Section 5
+
+---
+
+### GAP-052: Patient Name, Age, and Address Collection Point Undefined
+**Status**: OPEN
+**Session**: TBD
+**Impact**: Prescription validity. FR-043 states the prescription auto-populates patient
+name, age, and address from PatientProfile. But no FR defines when or where these are
+collected from the patient. The registration flow (FR-001) only specifies mobile number
+and OTP. The intake flow (FR-002) specifies health/mental health questions. If planning
+proceeds without defining this collection point, the PatientProfile will be missing legally
+mandatory prescription fields (Telemedicine Practice Guidelines 2020 require name, age,
+address on every prescription).
+**Affected FRs**: FR-001 (registration), FR-002 (intake), FR-043 (prescription auto-population)
+**Affected Entities**: PatientProfile (name, date_of_birth, address fields)
+**Research ref**: Section 3.2
+
+---
+
 ## DEFERRED Gaps (address in planning phase, not spec)
 
 - **Zoom waiting room**: Is it enabled by default? Can psychiatrists control entry?
@@ -721,3 +755,5 @@ for v1. Added to Future Readiness section.
 | GAP-048 | RESOLVED | Session 14 Q13 | Confirmed video-only for all v1 session types; audio-only Follow-Up deferred to v2 |
 | GAP-049 | RESOLVED | Session 14 Q14 | Kept merged into Follow-Up; 4th session type deferred to v2; mechanics identical in v1 |
 | GAP-050 | RESOLVED | Session 14 Q15 | Deferred to v2; v1 psychiatrist asks patient to email reports; results noted in free-text clinical observations |
+| GAP-051 | OPEN | TBD | — |
+| GAP-052 | OPEN | TBD | — |
