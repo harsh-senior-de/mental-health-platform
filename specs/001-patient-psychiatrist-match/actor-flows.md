@@ -622,3 +622,176 @@ The following friction points were identified across all four actor flows. These
 | 6 | Psychiatrist | Eligibility change is silent to the psychiatrist. They are never told they are ineligible for new bookings — only admins are notified. Existing bookings still honoured. Intentional but creates a poor experience. | Low |
 | 7 | Platform Admin | GSTIN ownership (platform company vs. agency) is not yet resolved — a pre-implementation blocker for FR-041 that must be confirmed with a CA before planning. | Blocker |
 | 8 | Psychiatrist | No-show detection relies entirely on Zoom webhook participant data quality. A Zoom webhook failure could silently miss a no-show event. | Low |
+
+---
+
+## Missing Flow Steps (Re-Validation Against Spec)
+
+Steps and branches that exist in the spec but were absent from the initial actor flows.
+
+### Patient Flows — Missing Steps
+
+**FR-001j — Login screen message for lost mobile number**
+A patient who has lost their mobile SIM and cannot receive OTPs must see a clear message on the login page directing them to contact support and stating that their only option is to create a new account. No recovery path exists in v1. This is a distinct screen state not described in Phase 1.
+
+**FR-005 — Viewing historical consent record from profile settings**
+The consent text (including the recording disclosure) must be accessible to the patient from their profile settings at any time — not just at registration. No flow step covers a patient navigating to view their stored consent record post-registration. Add to Phase 9 (Ongoing Care) or Phase 11 (Data Rights).
+
+**FR-008 — Concurrent slot booking conflict (two patients, same slot)**
+If two patients simultaneously select the same slot and both pass the initial availability check, only one booking can succeed. The losing patient should see: slot hold fails, inline error, remaining slots shown — no flow restart. Currently only the single-user slot-hold path is described (Step 12). The concurrent conflict branch is missing.
+
+**FR-010a — No psychiatrist available in the next 7 days**
+When no psychiatrist has any available slot in the next 7 days, the system must surface the next available date for each match and still show them as options. This is distinct from FR-010 (low match score "closest available" label) and is missing entirely from the match list steps.
+
+**FR-011b — Race condition: payment succeeded but slot became unavailable**
+If payment succeeds via any confirmation path but the slot became unavailable between payment and booking completion, an automatic full refund must be issued immediately and the patient notified via SMS + WhatsApp. Currently only the Zoom-failure refund branch is described (Step 16). This race-condition path is missing.
+
+**FR-011c — Slot release on abandoned checkout**
+If no payment confirmation arrives within the 10-minute slot hold window (abandoned checkout, declined card, browser close), the slot is released and no refund is issued (no payment was made). Step 12 mentions the 10-minute hold but never describes the expiry path.
+
+**FR-015d — Transcripts anonymised (not deleted) on account deletion**
+When a patient's deletion job runs (Phase 11, Step 37), raw Zoom transcripts are anonymised — patient identifiers replaced with a pseudonymous ID — and retained for 7 years. They are NOT deleted. This is a legally significant distinction from the patient's perspective (they cannot have transcripts erased) that should be stated explicitly in Phase 11 alongside the general clinical records anonymisation note.
+
+**FR-019 — MCI number in appointment reminder messages**
+All appointment reminder SMS and WhatsApp messages (48h, 2h, 15min — Step 22) that reference a specific psychiatrist must include the MCI registration number: "Dr. [Name] (MCI Reg: [number])." The MCI number requirement is currently mentioned only on the checkout and confirmation screens, not on the reminder messages.
+
+**FR-021b — Medication reminder only fires if patient sets a time**
+Step 29 implies all medications in "My Medications" automatically get reminders. The correct behaviour: if the patient does not set a reminder time for a specific medication, no reminder is sent for that medication. Opt-in by time-setting, not opt-out.
+
+**FR-023 — Tier 3 reminders suppressed when no active care plan**
+Care reminders (medication, activity, follow-up prompts) must not be sent to a patient who has no active care plan. Phase 9 (Step 30) describes Tier 3 notifications without mentioning this guard condition.
+
+**FR-040 — "New" label for unrated psychiatrists**
+Psychiatrists with no completed sessions appear in matching results marked "New" — the percentile band display is replaced by "New" and no star rating is shown. This is a distinct match card state not described as an explicit branch in Step 11.
+
+**FR-042 — Automatic session type classification on first booking**
+The platform automatically classifies a booking as Initial Assessment when the patient has no prior completed session. The patient does not choose the session type. Steps 10–12 describe slot selection but never state that session type is system-determined on first booking.
+
+**FR-042 — Crisis helplines on booking page and patient dashboard**
+FR-042 requires crisis helpline numbers to appear on three surfaces: login/registration page, booking page, and patient dashboard. The flows currently mention helplines only in Phase 0 (Step 1 — pre-registration). The booking screen (Steps 9 onward) and patient dashboard (Steps 27 onward) are missing this requirement.
+
+**FR-042 — iCall WhatsApp as a third crisis contact**
+In addition to iCall phone (9152987821) and Vandrevala Foundation phone (1860-2662-345), FR-042 specifies an iCall WhatsApp number configurable in PlatformConfiguration. Step 1 and the "I Need Help Now" flows should include this third contact channel.
+
+**FR-028 — Type 3 (7-year expiry) deletion trigger**
+The Data Lifecycle Service runs a daily automated scan identifying accounts with last activity older than 7 years and enqueues Type 3 deletion jobs. This is a system-automated event with no actor — but it should appear in the Platform Admin monitoring flows (Sub-panel A) as an observable event with its own job type, not just as background context.
+
+---
+
+### Psychiatrist Flows — Missing Steps
+
+**FR-047 — Psychiatrist-side prompt on patient no-show**
+When the Zoom webhook indicates the patient did not join, the psychiatrist sees a prompt in the session record: *"Patient did not attend — add session notes or skip."* The psychiatrist can still complete session notes (FR-015b applies unchanged) or dismiss. This psychiatrist-side experience is entirely absent from the flows. Currently only the patient-side no-show handling (re-engagement nudges) is described.
+
+**FR-026 — Rebook link in slot-block notification**
+Step 13 (Psychiatrist, Phase 2) describes that blocking a slot notifies the patient with a refund. FR-026 requires the notification to include a direct rebook link. The rebook link is missing from the psychiatrist-side slot-block step.
+
+---
+
+### Platform Admin Flows — Missing Steps
+
+**FR-033 — Platform Admin deactivating a patient account**
+The Platform Admin can deactivate patient accounts (not just psychiatrist accounts). Phase 4 (Steps 9–10) covers only psychiatrist deactivation and TOTP reset. There is no flow for patient account deactivation — what triggers it, what the patient experiences, what notifications are sent, and whether any refunds are issued for upcoming bookings.
+
+**FR-034 — Platform Admin has zero access to patient clinical data**
+The Agency Admin flows include an explicit "Data Access Boundaries" phase (Phase 6, Step 17) stating zero clinical data access. The Platform Admin flows have no equivalent statement. The data isolation constraint for Platform Admins must be stated explicitly — their operational dashboard access (audit logs, payment flags, Zoom failures) must be clearly scoped as non-clinical.
+
+**FR-030 — Per-job permanent PII-free audit entry**
+Every deletion job produces a permanent PII-free audit entry: job type, pseudonymous patient ID, enqueue timestamp, completion timestamp, categories erased vs. anonymised. The Platform Admin dashboard (Sub-panel A) shows aggregate job status — the individual per-job immutable audit record requirement is not described.
+
+---
+
+## UX Improvement Opportunities
+
+Specific changes that would reduce friction or improve the experience for each actor. These are design recommendations for the planning phase — not spec changes.
+
+---
+
+### Patient
+
+**P1 — Consolidate WhatsApp setup into the consent screen**
+Currently: OTP verification → consent screen → WhatsApp prompt → intake. Three screens before any health data is collected.
+Improvement: Move the WhatsApp number field into the consent screen as a "Communication Preferences" section below the consent text. Patient clicks "I Agree," sets their WhatsApp preference in one step, goes directly to intake. Removes one full screen transition.
+Why: Each extra registration screen increases abandonment. WhatsApp setup is closely related to consent (the consent text references WhatsApp notification).
+
+**P2 — Add intake questionnaire progress indicator**
+Currently: Multi-section form with no visible indication of total sections or completion percentage.
+Improvement: Show "Section 3 of 6" and an estimated completion time ("~8 minutes") on the first section. Make the 48-hour inactivity nudge deep-link to the exact section where the patient left off.
+Why: Without a progress indicator, patients abandon not knowing how close they are to completion. SC-003 targets 90% completion.
+
+**P3 — Add "Sort by: Soonest available" to match list**
+Currently: Match list defaults to best-match rank. Patients must visually scan all 5 cards to find the earliest slot.
+Improvement: Add a sort control ("Best match / Soonest available"). Default remains "Best match." One-tap to reorder by earliest slot for patients who need urgency over precision.
+Why: A patient in acute distress needs a slot this week, not the best algorithm match. The slot date is already on each card — this is a display-layer change.
+
+**P4 — Add slot hold countdown timer on checkout**
+Currently: Slot held for 10 minutes with no visible indicator. Patient can lose their slot during checkout with no prior warning.
+Improvement: Show a visible countdown timer on the checkout screen ("Slot reserved — 09:42 remaining"). Alert the patient at 2 minutes remaining.
+Why: Without a timer, the 10-minute expiry is a surprise. A timer sets expectations and motivates timely payment completion. Standard pattern on travel booking platforms.
+
+**P5 — Add "Add to Calendar" button on booking confirmation**
+Currently: Booking confirmed, patient gets SMS + WhatsApp confirmation. No calendar integration.
+Improvement: Show "Add to Google Calendar / iCal" buttons on the confirmation screen. Session date, time, Zoom link, and psychiatrist name are all available at this point.
+Why: Patients who book weeks in advance rely on SMS reminders. A calendar event survives SMS failures and phone changes. Reduces no-shows.
+
+**P6 — Offer "Reschedule instead?" during within-24h cancellation**
+Currently: Within-24h cancellation confirmation modal shows the forfeited fee. Patient confirms, fee is lost.
+Improvement: Add a "Reschedule instead?" option at the bottom of the modal, pre-wired to the guided reschedule flow. The patient who was about to cancel may reschedule if offered the path before the fee is forfeited.
+Why: Many within-24h cancellations are scheduling conflicts. A last-moment reschedule prompt converts a revenue-negative event into a retained booking and preserved clinical continuity.
+
+**P7 — Prompt medication reminder setup at prescription delivery**
+Currently: Patient sets medication reminder times from "My Medications" in their profile — a navigational step most will never take.
+Improvement: When the prescription first arrives (on profile page or in WhatsApp notification), show a "Set up your medication reminders" prompt immediately. Capture reminder preferences at the moment of highest motivation.
+Why: The medication reminder feature (FR-021b) is entirely opt-in by time-setting. A patient who never navigates to "My Medications" gets zero reminders. Prompting at prescription delivery dramatically increases adoption.
+
+**P8 — Offer "Download your records first" before account deletion**
+Currently: Account deletion requires navigating to profile settings and confirming. No mention of the records export right.
+Improvement: Before the deletion confirmation, surface a one-tap "Download your records first" prompt that enqueues a records export job. Once deletion is confirmed, the patient loses access to their clinical history.
+Why: Under FR-036, the records export is a legal right. A patient who deletes without exporting has permanently lost access to their clinical history — an irreversible information loss they may not have considered.
+
+---
+
+### Psychiatrist
+
+**PS1 — Pre-session summary digest on patient profile**
+Currently: Psychiatrist opens a patient's full profile before a session — all history, all recommendations, all transcripts.
+Improvement: Surface a collapsible pre-session digest panel at the top: last session date + key recommendations, flagged intake changes since last session (FR-004a), current active medications, and follow-up status. Full record accessible below.
+Why: SC-005 targets patient record access in under 10 seconds. SC-006 targets draft approval in under 2 minutes. Under session time pressure, a psychiatrist scrolling unfiltered history is more likely to miss a flagged intake change or medication conflict. A digest reduces cognitive load at the highest-stakes moment.
+
+**PS2 — Inline post-session checklist: session notes + prescription decision**
+Currently: Session approval and e-prescription are separate workflows with separate navigation.
+Improvement: After session notes approval, show an inline prompt: "Do you need to issue a prescription for this session? [Issue Prescription] [No prescription needed]." One click goes to the e-prescription tool; the other records that no prescription was required. Makes the prescription decision explicit and immediate.
+Why: A psychiatrist who forgets to issue a prescription after approval must navigate back to find the e-prescription tool. The absence of a prescription is currently ambiguous — there is no system record that the decision was made consciously.
+
+**PS3 — Recurring slot creation for regular schedules**
+Currently: Each availability slot must be created individually.
+Improvement: Add a "Repeat weekly for N weeks" option when creating a slot, capped at the 3-month horizon with automatic overlap detection for each recurrence.
+Why: A psychiatrist with 10 weekly Follow-Up slots creates them one at a time. The overhead disincentivises keeping the calendar current, which degrades matching quality for patients.
+
+---
+
+### Agency Admin
+
+**AA1 — Decouple psychiatrist activation email from full profile completion**
+Currently: Activation email sent only after Agency Admin fills every profile field — name, MCI number, clinic, specialisations, languages, fees, and photo.
+Improvement: Send the activation email as soon as mandatory fields are filled (name, MCI number, email). Optional fields (photo, specialisations, fees) can be completed after activation — by the Agency Admin or the psychiatrist themselves in their own profile settings. Psychiatrist cannot appear in matching results until mandatory fields are complete.
+Why: If the Agency Admin doesn't have the photo yet, the entire psychiatrist onboarding is blocked. Decoupling activation from full profile completeness unblocks the psychiatrist to set up TOTP and manage availability while admin completes administrative details.
+
+**AA2 — Show downstream impact before deactivation confirmation**
+Currently: Agency Admin enters a cancellation reason and presses "Deactivate." Immediate hard deactivation with no preview of consequences.
+Improvement: Before the destructive action, show: exact number of upcoming confirmed bookings to be cancelled, total refund value, and list of affected appointment dates (no patient PII — dates and session types only). Require the admin to type the psychiatrist's MCI number or name to confirm (GitHub-style destructive action pattern).
+Why: An accidental deactivation triggers mass cancellations that cannot be reversed. The re-booking burden falls on patients who had no role in the admin error. Surfacing the downstream impact before the action makes irreversibility tangible.
+
+---
+
+### Platform Admin
+
+**PA1 — Unified alert triage panel on the Operations Dashboard**
+Currently: Operations Dashboard has five separate sub-panels. Urgent actionable items can be buried in any of them.
+Improvement: Add an alert panel at the top aggregating the most urgent actionable items across all sub-panels: "3 payments need manual refund," "2 SLA-breached deletion jobs," "1 no-show in manual-review mode pending decision." Each item links directly to the relevant sub-panel entry.
+Why: Items with time windows (manual-review no-show = 24h SLA; deletion jobs = 72h SLA) may be missed when buried in sub-panels. A unified alert surface ensures time-sensitive items are acted on before they breach SLA.
+
+**PA2 — Structured PlatformConfiguration setup checklist**
+Currently: PlatformConfiguration is a flat list of 35+ configurable values with no grouping.
+Improvement: Group values into named sections with completion indicators ("Authentication & Security," "Notifications," "Payments & Invoicing," "Matching & Eligibility," "Clinical & Regulatory," "Data Lifecycle"). Show a pre-launch checklist with green/red completion state per section. Flag items with known pre-implementation dependencies (specifically FR-041's GSTIN ownership decision) as "Review required."
+Why: A flat 35+ item configuration list has no natural priority order. The GSTIN blocker is exactly the kind of item that gets buried in a flat list and discovered too late. A structured checklist with completion state makes pre-launch configuration deliberate and auditable.
