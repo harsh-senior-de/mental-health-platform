@@ -1,0 +1,29 @@
+{
+  "source_path": "/home/harsh/workspace/mental-health-platform/specs/001-patient-psychiatrist-match/actor-flows.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "End-to-End Actor Flows — Mental Health Platform (Feature 001)",
+  "summary": "Detailed step-by-step flows for all four platform actors — Patient, Psychiatrist, Agency Admin, Platform Admin — covering registration through long-term care.",
+  "scope": [
+    "patient-registration",
+    "intake-questionnaire",
+    "psychiatrist-matching",
+    "slot-booking",
+    "payment",
+    "zoom-sessions",
+    "e-prescription",
+    "whatsapp-notifications",
+    "data-rights",
+    "agency-admin",
+    "platform-admin",
+    "availability-management",
+    "session-notes",
+    "care-recommendations",
+    "data-lifecycle"
+  ],
+  "cross_refs": [],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

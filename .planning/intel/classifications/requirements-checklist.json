@@ -4,7 +4,7 @@
   "confidence": "high",
   "manifest_override": true,
   "title": "Specification Quality Checklist: Mental Health Platform — Patient Intake, Psychiatrist Matching & Personalized Care",
-  "summary": "Checklist validating completeness and quality of the patient-psychiatrist match feature specification before planning begins.",
+  "summary": "A quality checklist validating completeness of the patient-psychiatrist match feature spec before planning proceeds.",
   "scope": ["spec quality", "patient intake", "psychiatrist matching", "personalized care", "feature readiness"],
   "cross_refs": ["../spec.md"],
   "locked": false,

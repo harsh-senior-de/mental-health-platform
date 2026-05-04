@@ -4,26 +4,27 @@
   "confidence": "high",
   "manifest_override": true,
   "title": "Feature Specification: Mental Health Platform — Patient Intake, Psychiatrist Matching & Personalized Care",
-  "summary": "Technical specification for patient onboarding, psychiatrist matching, appointment booking, long-term care profiles, and personalised WhatsApp notifications for an India-market mental health platform.",
+  "summary": "Full feature specification for patient onboarding, psychiatrist matching, appointment booking, long-term care profiles, and personalized WhatsApp notifications on an India-market mental health platform.",
   "scope": [
-    "patient-onboarding",
-    "intake-questionnaire",
+    "patient-intake",
     "psychiatrist-matching",
     "appointment-booking",
     "razorpay-payments",
-    "zoom-integration",
+    "zoom-video-sessions",
     "care-recommendations",
     "whatsapp-notifications",
-    "sms-otp-authentication",
-    "totp-mfa",
-    "data-lifecycle",
     "e-prescriptions",
-    "agency-management",
-    "platform-configuration",
-    "session-feedback-ratings"
+    "data-lifecycle",
+    "multi-agency-support",
+    "platform-admin",
+    "agency-admin",
+    "session-feedback-ratings",
+    "gst-invoicing",
+    "totp-mfa",
+    "otp-authentication"
   ],
   "cross_refs": [],
   "locked": false,
   "precedence": null,
-  "notes": ""
+  "notes": "Manifest declared SPEC; content also exhibits strong PRD signals (user stories with Given/When/Then acceptance criteria, priority ratings, edge cases). Classified as SPEC per manifest authority. Synthesizer should extract both requirements and technical constraints from this document."
 }

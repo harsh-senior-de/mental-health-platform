@@ -192,7 +192,11 @@ or after any regulatory change affecting compliance obligations.
 | CONSTRAINT-023 | schema | Patient entity primary key must be UUID (not mobile number) |
 | CONSTRAINT-024 | nfr | GSTIN ownership decision requires CA confirmation before invoicing impl |
 | CONSTRAINT-025 | nfr | Web application only; no mobile app in v1 |
-| CONSTRAINT-026 | nfr | Prescription PDFs excluded from patient data export |
+| CONSTRAINT-026 | nfr | Prescription PDFs included in patient data export (DPDPA 2023 + MHCA 2017 Form A) |
+| CONSTRAINT-028 | schema | Three session-type fees per psychiatrist (Initial Assessment, Follow-Up, Urgent Review); locked into Payment record at booking; bulk update supported |
+| CONSTRAINT-029 | schema | CareRecommendation captures all MHCA 2017 Form B-1 mandatory fields; Form B-1 declaration checkbox required before approval |
+| CONSTRAINT-030 | protocol | Consent is a hard gate; patient decline triggers immediate deletion of partial account (mobile + OTP record only) |
+| CONSTRAINT-031 | schema | GST invoice number format: [PREFIX]/[FY]/[SEQUENCE]; auto-incrementing, gapless, resets April 1; immutable once issued |
 
 ---
 
@@ -201,15 +205,12 @@ or after any regulatory change affecting compliance obligations.
 These gaps are not blockers to roadmapping but must be resolved before the implementing
 phase that touches them. They are tracked here and annotated in the relevant phase notes.
 
-| Gap | Priority | Summary | Resolution Required By |
-|-----|----------|---------|------------------------|
-| GAP-034 | IMPORTANT (legal) | MHCA 2017 Form B-1 session documentation — CareRecommendation entity does not capture all mandatory fields. May require a new SessionRecord entity. | Before Phase 5 planning |
-| GAP-033 | IMPORTANT (business) | Pricing model — one fixed fee per psychiatrist vs. session-type-tiered pricing. Indian competitors charge 20–50% more for Initial Assessment. Spec mandates one fee; decision required. | Before Phase 3 planning |
-| GAP-027 | LOW | GST invoice sequential numbering — FR-041 omits sequential invoice number series required under GST law for B2C supplies. | Before Phase 6 planning |
-| GAP-025 | LOW | WhatsApp number verification at entry — no active verification when patient enters a different WhatsApp number at registration. | Before Phase 4 planning |
-| GAP-026 | LOW | Consent denial branch — no flow defined for what happens when a patient refuses consent at registration. | Before Phase 2 planning |
-| GAP-032 | IMPORTANT | Treatment phase tracking (Acute/Continuation/Maintenance) not modelled. Deferred to v2. | v2 |
-| GAP-035 | IMPORTANT | Caregiver Consultation session type not modelled. Deferred to v2 per spec Future Readiness. | v2 |
+All v1 gaps resolved. The following items are deferred to v2:
+
+| Gap | Priority | Summary | Target |
+|-----|----------|---------|--------|
+| GAP-032 | IMPORTANT | Treatment phase tracking (Acute/Continuation/Maintenance) not modelled. | v2 |
+| GAP-035 | IMPORTANT | Caregiver Consultation session type — deferred per spec Future Readiness. | v2 |
 
 ---
 

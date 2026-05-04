@@ -48,16 +48,14 @@ Phases 2 through 5 and is the first active feature in planning.
 ### Phase 2: Patient Registration and Auth
 **Goal**: All four user roles can securely authenticate and manage their accounts; patients can provide informed consent; all configurable platform thresholds live in an admin-editable store
 **Depends on**: Phase 1
-**Requirements**: REQ-patient-registration, REQ-otp-security, REQ-otp-sms-failover, REQ-account-inaccessibility-on-number-loss, REQ-session-expiry, REQ-non-patient-auth, REQ-password-reset-non-patient, REQ-account-provisioning, REQ-password-policy, REQ-account-lockout-non-patient, REQ-totp-recovery, REQ-explicit-consent, REQ-intake-questionnaire (consent step only), REQ-platform-configuration-store
+**Requirements**: REQ-patient-registration, REQ-patient-profile-setup, REQ-otp-security, REQ-otp-sms-failover, REQ-account-inaccessibility-on-number-loss, REQ-session-expiry, REQ-non-patient-auth, REQ-password-reset-non-patient, REQ-account-provisioning, REQ-password-policy, REQ-account-lockout-non-patient, REQ-totp-recovery, REQ-explicit-consent, REQ-intake-questionnaire (consent step only), REQ-platform-configuration-store
 **Success Criteria** (what must be TRUE):
   1. A patient can register with a mobile number, receive an OTP via SMS, verify it, and reach the intake start screen — the entire flow completes under 2 minutes
   2. A patient cannot complete more than 3 failed OTP attempts without triggering a 15-minute lockout; requesting a new OTP immediately invalidates the previous one
   3. A psychiatrist, agency admin, or platform admin can activate their account via a time-limited email link, set a password meeting policy, and enroll TOTP before gaining any access
   4. All non-patient account sessions expire after 30 minutes of inactivity or 8 hours absolute; the user is redirected to login with a clear expiry message
-  5. Explicit informed consent is presented and recorded before any sensitive health data is stored; a patient who has not consented cannot proceed to intake
+  5. Explicit informed consent is presented and recorded before any sensitive health data is stored; a patient who declines consent has their partial account deleted immediately with no further access
   6. A Platform Admin can update any PlatformConfiguration value (e.g., OTP expiry, lockout duration) from the admin UI and the change takes effect immediately without a deployment
-
-> **Note:** GAP-026 (consent denial branch) must be resolved before implementing the consent screen in this phase.
 **Plans**: TBD
 **UI hint**: yes
 
@@ -71,9 +69,7 @@ Phases 2 through 5 and is the first active feature in planning.
   3. A patient who has previously booked sees "Previously seen" psychiatrists sorted by recency; a "Find new match" option runs the full algorithm
   4. Double-booking is impossible — two concurrent booking attempts for the same slot result in exactly one confirmed booking and one graceful failure
   5. A cancellation made ≥24 hours before the session issues a full Razorpay refund; a cancellation made <24 hours shows the exact fee forfeited before the patient can confirm
-  6. Agency admins and psychiatrists can create, block, and delete availability slots within the configurable publication horizon; overlap creation is prevented at submission
-
-> **Note:** GAP-033 (one fixed fee vs. session-type-tiered pricing) must be resolved before planning this phase.
+  6. Agency admins set three session-type fees per psychiatrist (Initial Assessment, Follow-Up, Urgent Review); fees are locked into the Payment record at booking and displayed on the match list; bulk update is supported
 **Plans**: TBD
 **UI hint**: yes
 
@@ -83,28 +79,24 @@ Phases 2 through 5 and is the first active feature in planning.
 **Requirements**: REQ-psychiatrist-data-access, REQ-session-transcript-and-care-recommendation, REQ-e-prescription, REQ-list-c-drug-block, REQ-patient-care-history
 **Success Criteria** (what must be TRUE):
   1. A psychiatrist can open a patient record and view the complete intake summary and prior CareRecommendations within 10 seconds
-  2. After a session ends, a Zoom transcript webhook generates a structured draft CareRecommendation; the psychiatrist can review and approve it; no change reaches the patient record without explicit approval
+  2. After a session ends, a Zoom transcript webhook generates a structured draft CareRecommendation with all MHCA 2017 Form B-1 mandatory fields pre-populated; the psychiatrist completes the Form B-1 declaration checkbox before approval; no change reaches the patient record without explicit approval
   3. Attempting to prescribe any List C drug produces an immediate hard block naming the specific drug and citing the legal restriction; no override path exists
   4. A completed prescription PDF is downloadable by the patient from their appointment history and sent via WhatsApp if enabled; the prescribing psychiatrist's MCI registration number appears on every prescription
   5. A patient can view their full care history — all sessions, approved recommendations, and prescription records — in a chronological timeline from their portal
   6. Psychiatrist access to a patient's record automatically expires 3 months after the last completed session with no new booking; a new booking restores access
-
-> **Note:** GAP-034 (MHCA 2017 Form B-1 compliance) must be resolved before planning this phase. The CareRecommendation entity may require a new SessionRecord entity to capture all mandatory fields.
 **Plans**: TBD
 **UI hint**: yes
 
 ### Phase 5: Notifications and Care Continuity
 **Goal**: Patients receive timely, personalised notifications across all three tiers — OTP/auth, booking reminders, and care reminders — delivered within ±5 minutes of their stated preferred time with ≥95% delivery success
 **Depends on**: Phase 4
-**Requirements**: REQ-personalised-notifications
+**Requirements**: REQ-personalised-notifications, REQ-follow-up-nudge, REQ-medication-reminders
 **Success Criteria** (what must be TRUE):
   1. Booking reminder notifications (48h, 2h, 15min before session) are delivered via SMS and WhatsApp (if enabled) within ±5 minutes of the target time for ≥95% of active patients
   2. Tier 3 care reminders (medication, activity nudge, follow-up prompt) are delivered at each patient's individually configured preferred time, not a platform-wide schedule
   3. When a patient updates their notification preferences, all pending Tier 3 reminders are cancelled and rescheduled immediately; the daily cap is respected
   4. WhatsApp delivery failures are audit-logged; no SMS fallback occurs for Tier 3; SMS fallback does occur for Tier 2 if WhatsApp fails
   5. A patient can opt out of any notification category from their profile; opted-out categories stop immediately with no pending deliveries
-
-> **Note:** GAP-025 (WhatsApp number verification at entry) and GAP-026 (consent denial branch) must be resolved before implementing this phase.
 **Plans**: TBD
 
 ### Phase 6: Billing and Data Governance
@@ -113,12 +105,12 @@ Phases 2 through 5 and is the first active feature in planning.
 **Requirements**: REQ-gst-invoice, REQ-data-lifecycle, REQ-data-export
 **Success Criteria** (what must be TRUE):
   1. A GST-compliant tax invoice is generated for every confirmed paid booking and delivered to the patient (or available in booking history) within 24 hours of payment confirmation
-  2. A patient who requests data export receives a secure time-limited download link (valid 48 hours) via WhatsApp and SMS within 72 hours; the export contains intake responses, care recommendations, appointment history, and notification preferences — but not raw transcripts or prescription PDFs
+  2. A patient who requests data export receives a secure time-limited download link (valid 48 hours) via WhatsApp and SMS within 72 hours; the export contains intake responses, care recommendations, appointment history, all issued prescription PDFs, and notification preferences — raw session transcripts are excluded
   3. A patient account deletion request is fully processed (PII erased, clinical records pseudonymised) within 72 hours; no patient PII is accessible after completion
   4. The Data Lifecycle Service processes abandoned account cleanup (30-day no-login + incomplete intake) and data expiry (7-year threshold) automatically; job status is visible to Platform Admins with no PII exposed
   5. Platform Admins can view the deletion job dashboard, filter by job type and SLA status, and see no PII in any field
 
-> **Note:** GAP-027 (GST sequential invoice numbering) and CONSTRAINT-024 (GSTIN ownership — platform vs. agency) must be resolved before implementing the invoicing flow in this phase.
+> **Note:** CONSTRAINT-024 (GSTIN ownership — platform vs. agency) requires chartered accountant confirmation before the invoicing flow can be implemented.
 **Plans**: TBD
 
 ### Phase 7: Agency and Admin Portals
@@ -127,7 +119,7 @@ Phases 2 through 5 and is the first active feature in planning.
 **Requirements**: REQ-platform-admin-portal, REQ-agency-management
 **Success Criteria** (what must be TRUE):
   1. An AgencyAdmin can view, create, and deactivate psychiatrists for their own agency only; attempting to access another agency's psychiatrists returns an authorisation error
-  2. An AgencyAdmin can set and update the fee for each psychiatrist; the fee is locked into the Payment record at booking time
+  2. An AgencyAdmin can set and update all three session-type fees (Initial Assessment, Follow-Up, Urgent Review) for each psychiatrist; fees are locked into the Payment record at booking time; bulk update is supported
   3. A PlatformAdmin can deactivate a psychiatrist account, triggering immediate cancellation and full refund for all upcoming bookings with patient notification
   4. A PlatformAdmin can perform a TOTP reset for a non-patient account; the action is audit-logged; the user must re-enroll TOTP before any access is granted
   5. The PlatformAdmin portal shows the matching weights panel and rating eligibility thresholds panel; changes take effect immediately and are audit-logged; no clinical patient data is visible to Platform Admins under any circumstance
@@ -152,13 +144,11 @@ Phases 2 through 5 and is the first active feature in planning.
 **Depends on**: Phases 1 through 8 (requires complete feature set to audit)
 **Requirements**: REQ-success-criteria (SC-010, SC-011, SC-012 specifically)
 **Success Criteria** (what must be TRUE):
-  1. Every psychiatric session produces documentation satisfying MHCA 2017 Form B-1 mandatory fields; a gap analysis has been reviewed and resolved with legal sign-off
+  1. Every psychiatric session produces documentation satisfying MHCA 2017 Form B-1 mandatory fields (implemented in CareRecommendation extension); legal sign-off confirms full compliance
   2. All patient data access events are recorded in the audit log and retrievable by compliance teams within 24 hours (SC-010)
   3. The DPDPA 2023 patient rights checklist (export, deletion, consent, portability) is verified end-to-end against implemented flows with no outstanding gaps
   4. All telemedicine prescriptions comply with Telemedicine Practice Guidelines 2020: MCI registration number present, no List C drugs dispensed, Initial Assessment video-only rule enforced
   5. A clinical safety review of all user-facing features is documented; crisis pathways are confirmed reachable without authentication, subscription, or paywall gates
-
-> **Note:** GAP-034 (MHCA 2017 Form B-1) must be fully resolved and any resulting schema changes implemented before this phase can close.
 **Plans**: TBD
 
 ### Phase 10: Polish, Performance, and Scale
@@ -196,27 +186,26 @@ Phases execute in numeric order: 1 → 2 → 3 → ... → 10
 
 ---
 
-## Open Gap Annotations (Resolve Before Relevant Phase)
+## Open Gap Annotations
 
-| Gap | Phase Affected | Priority | Summary |
-|-----|---------------|----------|---------|
-| GAP-026 | Phase 2 | LOW | Consent denial branch — no flow defined for patient refusing consent at registration |
-| GAP-033 | Phase 3 | IMPORTANT (business) | Pricing model — one fixed fee vs. session-type-tiered pricing; Indian competitors charge 20–50% more for Initial Assessment |
-| GAP-025 | Phase 5 | LOW | WhatsApp number verification at entry — no active verification when patient enters a different WhatsApp number |
-| GAP-027 | Phase 6 | LOW | GST invoice sequential numbering required under GST law for B2C supplies; FR-041 currently omits this field |
-| GAP-034 | Phase 4, Phase 9 | IMPORTANT (legal) | MHCA 2017 Form B-1 session documentation compliance — CareRecommendation entity may not capture all mandatory fields |
-| GAP-032 | v2 | IMPORTANT | Treatment phase tracking (Acute/Continuation/Maintenance) — deferred to v2 |
-| GAP-035 | v2 | IMPORTANT | Caregiver Consultation session type — deferred to v2 |
+All v1 gaps resolved in spec (Sessions 1–15, all 52 gaps closed). The following items
+are deferred to v2:
+
+| Gap | Target | Summary |
+|-----|--------|---------|
+| GAP-032 | v2 | Treatment phase tracking (Acute/Continuation/Maintenance) — deferred to v2 |
+| GAP-035 | v2 | Caregiver Consultation session type — deferred to v2 per spec Future Readiness |
 
 ---
 
 ## Coverage Map
 
-All 33 v1 requirements mapped to exactly one phase. No orphaned requirements.
+All 36 v1 requirements mapped to exactly one phase. No orphaned requirements.
 
 | Requirement | Phase |
 |-------------|-------|
 | REQ-patient-registration | Phase 2 |
+| REQ-patient-profile-setup | Phase 2 |
 | REQ-otp-security | Phase 2 |
 | REQ-otp-sms-failover | Phase 2 |
 | REQ-account-inaccessibility-on-number-loss | Phase 2 |
@@ -243,6 +232,8 @@ All 33 v1 requirements mapped to exactly one phase. No orphaned requirements.
 | REQ-list-c-drug-block | Phase 4 |
 | REQ-patient-care-history | Phase 4 |
 | REQ-personalised-notifications | Phase 5 |
+| REQ-follow-up-nudge | Phase 5 |
+| REQ-medication-reminders | Phase 5 |
 | REQ-gst-invoice | Phase 6 |
 | REQ-data-lifecycle | Phase 6 |
 | REQ-data-export | Phase 6 |

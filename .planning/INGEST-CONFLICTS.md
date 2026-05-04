@@ -1,10 +1,10 @@
 ## Conflict Detection Report
 
-Mode: new
-Docs processed: 5 (1 ADR/LOCKED, 1 SPEC, 3 DOC)
+Mode: merge
+Docs processed: 7 (1 ADR LOCKED, 2 SPEC, 4 DOC)
 Precedence order applied: ADR > SPEC > PRD > DOC
 Cycle detection: no cycles detected in cross-reference graph
-Generated: 2026-05-03
+Generated: 2026-05-04 (supersedes 2026-05-03 new-run report)
 
 ---
 
@@ -13,121 +13,158 @@ Generated: 2026-05-03
 No blockers detected.
 
 There is exactly one ADR in the ingest set (.specify/memory/constitution.md) and it is
-LOCKED. No other ADR exists to produce a LOCKED-vs-LOCKED contradiction. No SPEC content
-was found to contradict the LOCKED ADR decisions. All SPEC FRs are consistent with the
-constitution's non-negotiable principles (see INFO section for details of the one alignment
-check requiring planning-phase attention). No UNKNOWN-confidence-low documents were found —
-all five classification files report confidence: "high".
+LOCKED. No other ADR exists to produce a LOCKED-vs-LOCKED contradiction. The constitution
+is unchanged from the prior ingest run (still v1.1.0, ratified 2026-05-01).
+
+No SPEC content was found to contradict the LOCKED ADR decisions. All 52 spec gaps are
+now resolved and none of the resolutions contradict any constitution principle. In
+particular:
+
+GAP-033 resolution (three-tier pricing): Consistent with DEC-009 (no hardcoded logic —
+fees stored in PlatformConfiguration and editable), DEC-013 (matching engine must factor
+fees into the match display), and DEC-012 (fee transparency aligns with personalisation).
+
+GAP-034 resolution (Form B-1 fields): Consistent with DEC-010 (MHCA 2017 compliance),
+DEC-003 (clinical safety), and DEC-002 (immutable audit logs retained 7 years).
+
+GAP-026 resolution (hard consent gate): Consistent with DEC-001 (explicit informed consent
+before processing sensitive data), DEC-010 (DPDPA 2023 compliance).
+
+No UNKNOWN-confidence-low documents in the ingest set. All 7 classification files report
+confidence: "high".
 
 ---
 
-### WARNINGS (3)
+### WARNINGS (1)
 
-[WARNING] Open spec gap GAP-033 — Competing pricing models not yet resolved in spec
-  Found: specs/001-patient-psychiatrist-match/spec.md (FR-023a) defines one fixed session
-  fee per psychiatrist with no variation by session type.
-  Found: specs/001-patient-psychiatrist-match/research/psychiatry-sessions-india.md
-  (Section 1.5, 2.3) documents that all Indian platforms charge 20–50% more for Initial
-  Assessment sessions than for Follow-Up sessions, with RocketHealth enforcing this as
-  distinct product SKUs.
-  Impact: The spec's single-fee model and the research's session-type-tiered pricing norm
-  are not yet reconciled. If the planning phase adopts session-type pricing, FR-023a,
-  FR-007, and FR-011a require amendment. If single-fee is confirmed as intentional, this
-  gap should be explicitly closed with a rationale.
-  Status: GAP-033 is OPEN in the gaps tracker with no planned session assigned.
-  Sources: specs/001-patient-psychiatrist-match/spec.md (FR-023a) vs.
-           specs/001-patient-psychiatrist-match/research/psychiatry-sessions-india.md
-           (Sections 1.5, 2.3)
-  → Assign a session to resolve GAP-033 before routing to planning, or explicitly close it
-    with a decision to retain single-fee and document the rationale.
-
-[WARNING] Open spec gap GAP-034 — MHCA 2017 Form B-1 compliance not yet modelled
-  Found: specs/001-patient-psychiatrist-match/spec.md (FR-015, FR-015b) defines
-  CareRecommendation as the post-session clinical note entity capturing medication details,
-  activity prescriptions, follow-up dates, and free-text notes.
-  Found: specs/001-patient-psychiatrist-match/research/psychiatry-sessions-india.md
-  (Section 5) documents that each psychiatric session must produce a Form B-1 outpatient
-  record under the Mental Healthcare (State) Rules 2018 with mandatory content that goes
-  beyond the current CareRecommendation: type of treatment/therapy, duration and goals,
-  techniques used, clinical observations, progress notes, capacity assessment, risk/benefit
-  discussions, and consent status.
-  Impact: The current spec does not fully satisfy the MHCA 2017 outpatient documentation
-  mandate. The constitution (DEC-010) requires all features involving clinical data to be
-  reviewed for compliance with MHCA 2017 before shipping. This gap may require a new
-  SessionRecord entity or extension of CareRecommendation to capture all mandatory Form B-1
-  fields. Shipping without resolving this creates legal compliance risk.
-  Status: GAP-034 is OPEN in the gaps tracker with no planned session assigned.
-  Sources: specs/001-patient-psychiatrist-match/spec.md (FR-015, FR-015b) vs.
-           specs/001-patient-psychiatrist-match/research/psychiatry-sessions-india.md
-           (Section 5) vs. .specify/memory/constitution.md (DEC-010 — MHCA 2017 compliance)
-  → Resolve GAP-034 before the plan phase. This is a legal compliance gap under MHCA 2017
-    that the constitution requires be addressed before shipping.
-
-[WARNING] Open spec gaps GAP-025, GAP-026, GAP-027 — Low-priority gaps not yet resolved
-  Found: The following LOW-priority gaps remain OPEN with no session assigned in the gaps
-  tracker, and they affect correctness or legal compliance of delivered FRs:
-
-  GAP-025: WhatsApp number verification at entry. When a patient enters a separate WhatsApp
-  number (different from their mobile number), it is stored with no active verification step.
-  An invalid or mistyped number results in silent notification failure with no recovery path
-  other than the patient manually editing their preferences. Affected: FR-001,
-  NotificationPreference entity.
-
-  GAP-026: Consent denial at registration. FR-005 requires explicit consent before storing
-  sensitive health data. The spec defines no branch for what happens when a patient refuses
-  consent — can they proceed without consenting? Or is consent mandatory to use the platform
-  at all? A missing branch here creates an undefined state in the registration flow. Affected:
-  FR-005, Patient entity (consent status field).
-
-  GAP-027: GST invoice sequential numbering. GST law in India requires invoices to carry
-  sequential invoice numbers for B2C supplies. FR-041 lists required invoice fields but omits
-  a sequential invoice number series. This is a legal requirement. Affected: FR-041,
-  Payment entity (invoice number field).
-
-  Impact: While LOW priority, GAP-025 and GAP-027 have legal/compliance dimensions.
-  GAP-026 has a UX architecture dimension. None block routing to planning, but the planner
-  should note these are unresolved in the spec they are planning against.
-  Sources: specs/001-patient-psychiatrist-match/checklists/gaps.md (GAP-025, GAP-026,
-           GAP-027)
-  → Close these gaps during the plan phase or prior to implementation; document resolutions
-    in the spec before any corresponding FR is implemented.
+[WARNING] actor-flows.md introduces an in-platform psychiatrist inbox messaging element
+not present in the spec
+  Found: specs/001-patient-psychiatrist-match/actor-flows.md (UX Improvement Opportunities,
+  Idea 11 — "I Need Help Now" Button, option 3): "Send a message to Dr. [Name] — a
+  pre-composed message sent to psychiatrist's in-platform inbox."
+  Found: No corresponding FR exists anywhere in specs/001-patient-psychiatrist-match/spec.md.
+  No in-platform messaging inbox entity or service is defined in the spec.
+  Found: competitive-edge.md (Idea 11, v1 section) also describes this element as the third
+  option in the "I Need Help Now" modal.
+  Impact: If planned or built, this introduces: a new service boundary (messaging service),
+  a new PHI-carrying data model (MessageRecord or equivalent), a new RBAC surface (patients
+  sending unsolicited messages to psychiatrists without an active booking), and psychiatrist
+  clinical liability (receiving messages outside a booked session without a defined response
+  obligation). Under DEC-003, this feature would require a clinical safety review before
+  shipping. Under DEC-001 and DEC-011, the message content would be PHI requiring
+  encryption and RBAC scoping. Under DEC-007, it requires a new versioned API and service
+  boundary.
+  Source for found item: specs/001-patient-psychiatrist-match/actor-flows.md (UX section);
+  specs/001-patient-psychiatrist-match/competitive-edge.md (Idea 11)
+  Classification context: competitive-edge.md is DOC (lowest precedence); actor-flows.md
+  is SPEC but frames this as a UX suggestion, not a requirement. Neither doc produces a
+  formal FR. This item is intentionally not extracted into requirements intel and does not
+  block synthesis.
+  Action required: If the planner adopts Idea 11, scope it to options 1 and 2 only
+  (crisis helplines — already in spec via CONSTRAINT-030 and FR-042; Urgent Review
+  routing — already in spec via FR-042). Option 3 (psychiatrist inbox messaging) requires
+  a dedicated spec amendment with a clinical safety review component before any planning
+  work. Do not plan or implement option 3 without an approved spec.
 
 ---
 
-### INFO (4)
+### INFO (5)
 
-[INFO] Auto-resolved: SPEC consistent with LOCKED ADR on automated clinical decisions
-  Note: specs/001-patient-psychiatrist-match/spec.md (FR-015, FR-015a) specifies that
-  the Zoom transcript is used to generate a draft recommendation only, and that the
-  psychiatrist must explicitly review and approve before anything is written to the patient
-  record. This is fully consistent with .specify/memory/constitution.md (DEC-003, DEC-011)
-  prohibiting automated clinical diagnosis or treatment recommendations. No conflict.
+[INFO] Auto-resolved: SPEC self-update on pricing model (GAP-033)
+  Previous state: Prior synthesis (2026-05-03) extracted REQ-availability-management
+  with acceptance criterion: "A psychiatrist profile has exactly one fee field; multiple
+  fees per psychiatrist are rejected." This was sourced from the spec's Session 2026-05-02
+  clarification stating "exactly one fixed session fee per psychiatrist."
+  Previous state: REQUIREMENTS.md (downstream output) also contained the single-fee model.
+  Current state: specs/001-patient-psychiatrist-match/spec.md (FR-023a, updated in
+  Session 13 Q2 / GAP-033 resolution) now mandates three separate fees per psychiatrist —
+  one each for Initial Assessment, Follow-Up, and Urgent Review — set by the Agency Admin.
+  The per-session-type fee is displayed on the match list and locked into the Payment
+  record at booking confirmation. Bulk update is supported.
+  Resolution: Current SPEC version supersedes prior SPEC version for FR-023a. No LOCKED
+  ADR is contradicted. REQ-availability-management has been updated in intel/requirements.md
+  to reflect three fees per psychiatrist. CONSTRAINT-028 (new) captures the three-fee
+  schema requirement. The prior single-fee acceptance criterion has been removed.
+  Downstream note: REQUIREMENTS.md (a downstream output file, not an ingest source) still
+  contains the old single-fee language. The roadmapper must regenerate REQUIREMENTS.md
+  from the updated intel to pick up this change.
+  Source for prior state: REQUIREMENTS.md (REQ-availability-management, 2026-05-03)
+  Source for current state: specs/001-patient-psychiatrist-match/spec.md (FR-023a,
+  GAP-033 resolution, Session 13)
 
-[INFO] Auto-resolved: SPEC consistent with LOCKED ADR on data export and DPDPA 2023
-  Note: specs/001-patient-psychiatrist-match/spec.md (FR-036) defines a patient data export
-  mechanism satisfying the constitution's data portability requirement (DEC-001: "Users MUST
-  be able to export and delete their data at any time") and DPDPA 2023. The export explicitly
-  includes patient-authored SessionFeedback records under DPDPA 2023 (resolved via GAP-003).
-  No conflict.
+[INFO] Auto-resolved: SPEC self-update on data export scope — prescription PDFs now included
+  Previous state: intel/constraints.md CONSTRAINT-026 stated "Prescription PDFs are
+  clinical records, not patient-authored data. They are excluded from the patient data
+  export package (FR-036)."
+  Previous state: intel/requirements.md REQ-data-export listed the export as including
+  intake responses, care recommendations, appointment history, notification preferences,
+  and patient's own SessionFeedback records. Prescription PDFs were not in this list.
+  Current state: specs/001-patient-psychiatrist-match/spec.md (FR-036, updated per
+  GAP-041 resolution in Session 14 Q6) now includes all issued prescription PDFs in the
+  export package. The data export was unified to satisfy both DPDPA 2023 data portability
+  rights and MHCA 2017 Section 25 Form A clinical records access rights in a single 72-hour
+  flow. Raw Zoom transcripts remain excluded (intermediate artifact, not formal clinical
+  record).
+  Resolution: Current SPEC version supersedes prior SPEC version for FR-036. No LOCKED
+  ADR is contradicted — DEC-001 requires data portability, and including prescription PDFs
+  strengthens compliance with DEC-010 (MHCA 2017 Form A access right). CONSTRAINT-026 has
+  been updated in intel/constraints.md. REQ-data-export has been updated in
+  intel/requirements.md to include prescription PDFs.
+  Source for prior state: intel/constraints.md (CONSTRAINT-026, 2026-05-03)
+  Source for current state: specs/001-patient-psychiatrist-match/spec.md (FR-036,
+  GAP-041 resolution, Session 14)
 
-[INFO] Auto-resolved: SPEC consistent with LOCKED ADR on no hardcoded logic
-  Note: All business rules, thresholds, and notification parameters in
-  specs/001-patient-psychiatrist-match/spec.md are defined as PlatformConfiguration values
-  editable by Platform Admins without a code change (FR-035). This is fully consistent with
-  .specify/memory/constitution.md (DEC-009, DEC-012) prohibiting hardcoded business logic.
-  No conflict.
+[INFO] Auto-resolved: SPEC self-update on consent denial (GAP-026)
+  Previous state: intel/requirements.md REQ-explicit-consent contained an open-gap note:
+  "GAP-026 open — no branch defined for consent denial flow. Resolve before Phase 2
+  implementation." ROADMAP.md Phase 2 carried the same open-gap annotation. PROJECT.md
+  Open Gaps table listed GAP-026 as LOW priority open.
+  Current state: specs/001-patient-psychiatrist-match/spec.md (FR-005, updated in
+  Session 13 Q6 / GAP-026 resolution) now specifies: consent is a hard gate — if the
+  patient declines, their partial account (mobile number and OTP record only) is deleted
+  immediately. No partial access or browse-only mode. No consent, no platform access.
+  Resolution: GAP-026 resolved in the SPEC. No LOCKED ADR is contradicted — this
+  strengthens alignment with DEC-001 (explicit informed consent) and DEC-010 (DPDPA 2023).
+  REQ-explicit-consent and CONSTRAINT-031 (new) updated in intel. The open-gap annotations
+  in PROJECT.md and ROADMAP.md reflect the old state and should be removed by the roadmapper
+  on next PROJECT.md and ROADMAP.md regeneration.
+  Source: specs/001-patient-psychiatrist-match/spec.md (FR-005, GAP-026 resolution)
 
-[INFO] DOC research gap noted — treatment phase tracking
-  Note: specs/001-patient-psychiatrist-match/research/psychiatry-sessions-india.md
-  (Section 4.1) documents the IPS three-phase treatment model (Acute/Continuation/
-  Maintenance) with recommended session frequency guidance per phase. The spec
-  (specs/001-patient-psychiatrist-match/spec.md) does not model treatment phases. This
-  is captured as GAP-032 in the gaps tracker and is noted as a platform differentiation
-  opportunity. As a DOC-source observation against a SPEC-source scope gap, this is not
-  a precedence conflict — it is an additive research finding. It does not contradict any
-  existing SPEC requirement; it identifies a clinical capability not yet included in scope.
-  Downstream planners should note this when designing the CareRecommendation and
-  PatientProfile entities for extensibility.
-  Sources: specs/001-patient-psychiatrist-match/research/psychiatry-sessions-india.md
-           (Section 4.1) vs. specs/001-patient-psychiatrist-match/checklists/gaps.md
-           (GAP-032)
+[INFO] Auto-resolved: SPEC self-update on GST invoice sequential numbering (GAP-027)
+  Previous state: intel/requirements.md REQ-gst-invoice had an open-gap note: "GAP-027
+  open — sequential invoice numbering required under GST law for B2C supplies." ROADMAP.md
+  Open Gap Annotations table listed GAP-027 for Phase 6. PROJECT.md Open Gaps table listed
+  GAP-027 as LOW priority open.
+  Current state: specs/001-patient-psychiatrist-match/spec.md (FR-041, updated in
+  Session 13 Q7 / GAP-027 resolution) now specifies: invoice number format is
+  [PREFIX]/[FY]/[SEQUENCE] (e.g., MHP/2026-27/00001); auto-incrementing, gapless, resets
+  April 1 each financial year; prefix configurable in PlatformConfiguration; invoice_number
+  field on Payment entity is immutable once issued.
+  Resolution: GAP-027 resolved in the SPEC. No LOCKED ADR is contradicted. REQ-gst-invoice
+  updated in intel. The open-gap annotations in PROJECT.md, ROADMAP.md, and STATE.md
+  reflect the old state and should be removed by the roadmapper on next regeneration.
+  Source: specs/001-patient-psychiatrist-match/spec.md (FR-041, GAP-027 resolution)
+
+[INFO] Auto-resolved: SPEC self-update on MHCA 2017 Form B-1 compliance (GAP-034)
+  Previous state: intel/constraints.md Open Regulatory Gaps section stated GAP-034 was
+  open and "may require a new SessionRecord entity or extension of CareRecommendation."
+  PROJECT.md Open Gaps table listed GAP-034 as IMPORTANT (legal) with the same caveat.
+  ROADMAP.md Phase 4 and Phase 9 notes carried the unresolved GAP-034 annotation.
+  Current state: specs/001-patient-psychiatrist-match/spec.md (FR-015b, updated across
+  Sessions 13–15 / GAP-034, GAP-039, GAP-044, GAP-046, GAP-047, GAP-051 resolutions) now
+  extends CareRecommendation with all Form B-1 mandatory fields. No new entity is required.
+  The extensions cover: presenting complaints, clinical observations, treatment type, consent
+  status, identity verification checkbox (audit-logged), investigations ordered (free-text),
+  Mental Status Examination (MSE free-text), Subjective SOAP section for Follow-Up and Urgent
+  Review, advance directive and nominated representative (read-only from PatientProfile), and
+  a Form B-1 completion declaration checkbox required before any session record can be approved.
+  Resolution: GAP-034 resolved in the SPEC. No LOCKED ADR is contradicted — this strengthens
+  alignment with DEC-010 (MHCA 2017 compliance) and DEC-002 (immutable records retained
+  7 years). CONSTRAINT-029 (new) captures the extended schema requirement. The open-gap
+  annotations in PROJECT.md, ROADMAP.md, and STATE.md should be removed by the roadmapper
+  on next regeneration.
+  Note: The ROADMAP.md Phase 9 success criterion "Every psychiatric session produces
+  documentation satisfying MHCA 2017 Form B-1 mandatory fields" remains valid and is now
+  implementable without a new entity.
+  Source: specs/001-patient-psychiatrist-match/spec.md (FR-015b, GAP-034 and related
+  resolutions, Sessions 13–15)

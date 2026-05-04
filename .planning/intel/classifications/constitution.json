@@ -4,7 +4,7 @@
   "confidence": "high",
   "manifest_override": true,
   "title": "Mental Health Platform Constitution — India",
-  "summary": "Non-negotiable architectural, clinical, and compliance principles governing all development on the India mental health platform (v1.1.0, ratified 2026-05-01).",
+  "summary": "Ratified v1.1.0 project constitution defining non-negotiable principles, architecture rules, forbidden practices, and governance for the India mental health platform.",
   "scope": [
     "platform constitution",
     "privacy and PHI handling",

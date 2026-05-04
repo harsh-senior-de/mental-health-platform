@@ -1,8 +1,9 @@
 # Requirements
 
 Feature: 001-patient-psychiatrist-match
-Source: specs/001-patient-psychiatrist-match/spec.md (fully clarified, 11+ sessions)
+Source: specs/001-patient-psychiatrist-match/spec.md (fully clarified, 15 sessions, all 52 gaps closed)
 Extracted: 2026-05-03
+Last updated: 2026-05-04 (merge run — 3 requirements added, 6 updated; all open-gap annotations removed)
 Status: All v1 requirements ready for planning
 
 ---
@@ -14,6 +15,16 @@ Status: All v1 requirements ready for planning
 **Description**: Patients register and log in using mobile number with OTP-based verification
 only. No password is set or stored at any point. Every login requires a fresh OTP received
 via SMS. During registration, patient is offered a WhatsApp notification opt-in checkbox.
+**v1**: Yes
+
+### REQ-patient-profile-setup
+**Source**: FR-001k
+**Description**: Immediately after a patient's first OTP verification (new registration only),
+a mandatory one-page profile setup form collects: full name (required), date of birth
+(required), and address (street, city, state, PIN code — all required). The patient must
+complete this form before the consent screen or intake questionnaire. Skipped on all
+subsequent logins. Fields stored on PatientProfile and auto-populated onto prescriptions
+(FR-043) without re-prompting the patient.
 **v1**: Yes
 
 ### REQ-otp-security
@@ -92,8 +103,10 @@ log entry. User must re-enroll TOTP before accessing any functionality after res
 ### REQ-explicit-consent
 **Source**: FR-005
 **Description**: Explicit informed consent must be obtained before storing any sensitive
-health data, with clear explanation of what is stored and why. Note: GAP-026 open — no
-branch defined for consent denial flow. Resolve before Phase 2 implementation.
+health data, with clear explanation of what is stored and why. Consent is a hard gate —
+if the patient declines, their partial account (mobile number and OTP record only) is
+deleted immediately. No partial access, browse-only mode, or grace period. No consent,
+no platform access.
 **v1**: Yes
 
 ### REQ-intake-questionnaire
@@ -131,11 +144,12 @@ used when scores fall below configurable threshold. Idempotent booking prevents 
 
 ### REQ-availability-management
 **Source**: FR-023a, FR-024, FR-025, FR-026
-**Description**: One fixed fee per psychiatrist (set by agency admin; locked into Payment
-record at booking). Slots created by agency admins or psychiatrists within a configurable
-maximum horizon (default 3 months). Overlap prevention at creation. When a booked slot is
-blocked or deleted, affected patient is notified, appointment is cancelled, and patient is
-prompted to rebook.
+**Description**: Three session-type fees per psychiatrist (Initial Assessment, Follow-Up,
+Urgent Review) set by the Agency Admin; bulk update supported. Fees locked into the Payment
+record at booking confirmation and displayed on the match list. Slots created by agency
+admins or psychiatrists within a configurable maximum horizon (default 3 months). Overlap
+prevention at creation. When a booked slot is blocked or deleted, affected patient is
+notified, appointment is cancelled, and patient is prompted to rebook.
 **v1**: Yes
 
 ---
@@ -203,8 +217,11 @@ profile without explicit psychiatrist approval. If no transcript within 60 minut
 session end: psychiatrist notified, prompted to enter manually, failure audit-logged.
 Psychiatrists can also add recommendations manually. All approved recommendations appended
 to patient's permanent record, timestamped and attributed. Raw transcripts retained 7 years,
-anonymised (not deleted) when deletion job runs.
-Note: GAP-034 open — MHCA 2017 Form B-1 compliance requires review before Phase 5 planning.
+anonymised (not deleted) when deletion job runs. CareRecommendation captures all mandatory
+MHCA 2017 Form B-1 fields (GAP-034 resolved): presenting complaints, clinical observations,
+treatment type, consent status, identity verification, investigations ordered, MSE, Subjective
+SOAP (Follow-Up/Urgent Review), advance directive reference, and Form B-1 declaration checkbox
+required before any session record can be approved.
 **v1**: Yes
 
 ### REQ-e-prescription
@@ -264,8 +281,26 @@ WhatsApp number and WhatsApp toggled on; not sent to patients with no active car
 Care reminder timing fully per-patient; no platform-wide schedule. On preference update, all
 pending Tier 3 reminders cancelled and rescheduled immediately. Daily cap on Tier 3
 (default 3, patient-adjustable). WhatsApp delivery failures audit-logged; no SMS fallback
-for Tier 3.
-Note: GAP-025 open — no active verification of separate WhatsApp number at entry.
+for Tier 3. WhatsApp number stored as entered with helper note shown; SMS is fallback if
+WhatsApp number is invalid (GAP-025 resolved).
+**v1**: Yes
+
+### REQ-follow-up-nudge
+**Source**: FR-046
+**Description**: When approving a CareRecommendation, the psychiatrist sets a follow-up
+interval (e.g., "2 weeks", "1 month") via an interval picker. The platform fires a
+WhatsApp nudge to the patient at the configured interval after the session date, prompting
+them to book their next appointment. Fires only if the patient has no confirmed upcoming
+booking with any psychiatrist at the time the nudge is scheduled to send.
+**v1**: Yes
+
+### REQ-medication-reminders
+**Source**: FR-021b
+**Description**: Opt-in daily medication reminder per active prescription. Patient sets
+preferred reminder time; platform sends a daily WhatsApp message listing active
+prescriptions at that time. Reminders are deactivated automatically when a prescription
+expires or is superseded. Patient can disable reminders for individual prescriptions from
+their profile.
 **v1**: Yes
 
 ---
@@ -276,12 +311,13 @@ Note: GAP-025 open — no active verification of separate WhatsApp number at ent
 **Source**: FR-041
 **Description**: GST-compliant tax invoice generated for every confirmed paid booking.
 Mandatory fields: booking reference, session date and time, psychiatrist name, session fee,
-applicable GST amount and rate, GSTIN of issuing entity. Delivered to patient within 24
-hours of payment confirmation or available from booking history.
+applicable GST amount and rate, GSTIN of issuing entity, and sequential invoice number in
+format `[PREFIX]/[FY]/[SEQUENCE]` (e.g., `MHP/2026-27/00001`). Invoice number is
+auto-incrementing, gapless, resets April 1 each financial year; prefix configurable in
+PlatformConfiguration; invoice_number field on Payment entity is immutable once issued.
+Delivered to patient within 24 hours of payment confirmation or available from booking history.
 Pre-implementation decision required: GSTIN ownership (platform company vs. agency) must
 be confirmed with a chartered accountant before implementation (CONSTRAINT-024).
-Note: GAP-027 open — sequential invoice numbering required under GST law for B2C supplies.
-Resolve before Phase 6 planning.
 **v1**: Yes
 
 ---
@@ -306,10 +342,11 @@ type) exposed to Platform Admins; no PII visible.
 **Description**: Patient self-service data export from profile settings (DPDPA 2023). Async
 export job enqueued; patient receives immediate on-screen acknowledgement; secure
 time-limited download link delivered via WhatsApp (if enabled) and SMS within 72 hours.
-Export includes: intake responses, care recommendations, appointment history, notification
-preferences, and patient's own submitted SessionFeedback records. Raw session transcripts
-excluded. Download link expires after 48 hours. Export jobs visible in Platform Admin
-dashboard.
+Export includes: intake responses, care recommendations, appointment history, all issued
+prescription PDFs, notification preferences, and patient's own submitted SessionFeedback
+records. Raw session transcripts excluded. Download link expires after 48 hours. Export
+jobs visible in Platform Admin dashboard. Prescription PDFs included to satisfy both DPDPA
+2023 data portability rights and MHCA 2017 Section 25 Form A clinical records access rights.
 **v1**: Yes
 
 ---
@@ -397,6 +434,7 @@ pool is platform-wide across all active agencies.
 | REQ-password-policy | Phase 1 | Pending |
 | REQ-account-lockout-non-patient | Phase 1 | Pending |
 | REQ-totp-recovery | Phase 1 | Pending |
+| REQ-patient-profile-setup | Phase 2 | Pending |
 | REQ-explicit-consent | Phase 2 | Pending |
 | REQ-intake-questionnaire | Phase 2 | Pending |
 | REQ-intake-editability | Phase 2 | Pending |
@@ -414,6 +452,8 @@ pool is platform-wide across all active agencies.
 | REQ-patient-care-history | Phase 4 | Pending |
 | REQ-post-session-feedback | Phase 4 | Pending |
 | REQ-personalised-notifications | Phase 5 | Pending |
+| REQ-follow-up-nudge | Phase 5 | Pending |
+| REQ-medication-reminders | Phase 5 | Pending |
 | REQ-gst-invoice | Phase 6 | Pending |
 | REQ-data-lifecycle | Phase 6 | Pending |
 | REQ-data-export | Phase 6 | Pending |
