@@ -257,6 +257,14 @@ correctly timed, personalized notifications matching their care plan and stated 
   to contact support. Support can only advise the patient to create a new account.
   Admin-mediated mobile number recovery (with out-of-band identity verification) is
   deferred to v2 — see Future Readiness.
+- **FR-001k**: Immediately after a patient completes OTP verification for the first time
+  (new registration only), the system MUST present a one-page profile setup form collecting:
+  full name (text, required), date of birth (date picker, required), and address (street,
+  city, state, PIN code — all required). The patient MUST complete and submit this form
+  before proceeding to the consent screen (FR-005) or intake questionnaire (FR-002). This
+  step is skipped on all subsequent logins. The collected fields are stored on PatientProfile
+  and auto-populated onto prescriptions (FR-043) without re-prompting. All three fields are
+  mandatory — the patient cannot advance to the next step until all are provided.
 - **FR-001i**: OTP SMS delivery MUST use a primary SMS provider with automatic failover to a
   backup SMS provider. If the primary provider fails to deliver within 30 seconds (no delivery
   acknowledgement received), the platform MUST automatically resend the same OTP via the
@@ -719,7 +727,9 @@ correctly timed, personalized notifications matching their care plan and stated 
   2020 requirement for active identity confirmation at consultation time. The checkbox is
   mandatory and its completion is audit-logged (timestamp, session reference). Optional
   fields (psychiatrist may leave blank): history summary, techniques used, capacity
-  assessment notes, risk/benefit discussion notes, and Mental Status Examination (MSE) —
+  assessment notes, risk/benefit discussion notes, investigations ordered (free-text —
+  e.g., "Hemogram, TFT, ECG"; documents what was requested from the patient, distinct
+  from receiving results which is deferred to v2), and Mental Status Examination (MSE) —
   a single free-text area for the psychiatrist to document MSE findings across the standard
   10 domains (appearance, behaviour, speech, mood, affect, thought process, thought content,
   perception, cognition, insight/judgment) in their own format. MSE is a distinct labeled

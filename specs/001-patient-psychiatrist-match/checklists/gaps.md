@@ -6,9 +6,9 @@ before asking new questions.
 
 **Last Updated**: 2026-05-04
 **Total Gaps**: 52
-**Resolved**: 50
+**Resolved**: 52
 **Open Critical**: 0
-**Open Important**: 2
+**Open Important**: 0
 **Open Low**: 0
 
 ---
@@ -654,8 +654,8 @@ for v1. Added to Future Readiness section.
 ## IMPORTANT Gaps — Research vs. Spec Re-validation (2026-05-04)
 
 ### GAP-051: Investigations Ordered Not Capturable in Session Notes
-**Status**: OPEN
-**Session**: TBD
+**Status**: RESOLVED
+**Session**: 15 Q1
 **Impact**: Form B-1 compliance. MHCA 2017 Form B-1 minimum content includes "investigation
 reports." Standard psychiatric practice requires documenting what investigations were
 ordered (hemogram, thyroid function, LFT/RFT, lipid profile, ECG, brain CT/MRI etc.) as
@@ -667,12 +667,16 @@ results" (file attachment, v2).
 **Affected FRs**: FR-015b — needs an "Investigations ordered" optional field
 **Affected Entities**: CareRecommendation
 **Research ref**: Section 2.1 (step 13), Section 5
+**Answer**: Option A — added optional free-text "Investigations ordered" field to FR-015b.
+Psychiatrist types whatever they ordered (e.g., "Hemogram, TFT, ECG"). No predefined list —
+same free-text pattern as other optional fields. Satisfies Form B-1 compliance. Distinct from
+investigation result attachments (GAP-050, deferred v2).
 
 ---
 
 ### GAP-052: Patient Name, Age, and Address Collection Point Undefined
-**Status**: OPEN
-**Session**: TBD
+**Status**: RESOLVED
+**Session**: 15 Q2
 **Impact**: Prescription validity. FR-043 states the prescription auto-populates patient
 name, age, and address from PatientProfile. But no FR defines when or where these are
 collected from the patient. The registration flow (FR-001) only specifies mobile number
@@ -683,6 +687,11 @@ address on every prescription).
 **Affected FRs**: FR-001 (registration), FR-002 (intake), FR-043 (prescription auto-population)
 **Affected Entities**: PatientProfile (name, date_of_birth, address fields)
 **Research ref**: Section 3.2
+**Answer**: Option A — added FR-001k: a dedicated profile setup step immediately after OTP
+verification (first registration only). Patient provides full name, date of birth, and address
+(street, city, state, PIN code) in a mandatory one-page form before consent screen or intake.
+Skipped on all subsequent logins. Fields stored on PatientProfile and auto-populated onto
+prescriptions (FR-043). Satisfies Telemedicine Practice Guidelines 2020 prescription requirements.
 
 ---
 
@@ -755,5 +764,5 @@ address on every prescription).
 | GAP-048 | RESOLVED | Session 14 Q13 | Confirmed video-only for all v1 session types; audio-only Follow-Up deferred to v2 |
 | GAP-049 | RESOLVED | Session 14 Q14 | Kept merged into Follow-Up; 4th session type deferred to v2; mechanics identical in v1 |
 | GAP-050 | RESOLVED | Session 14 Q15 | Deferred to v2; v1 psychiatrist asks patient to email reports; results noted in free-text clinical observations |
-| GAP-051 | OPEN | TBD | — |
-| GAP-052 | OPEN | TBD | — |
+| GAP-051 | RESOLVED | Session 15 Q1 | Optional free-text "Investigations ordered" field added to FR-015b; no predefined list; satisfies Form B-1; distinct from result attachments (v2) |
+| GAP-052 | RESOLVED | Session 15 Q2 | FR-001k added: mandatory profile setup step (name, DOB, address) immediately after OTP on first registration; skipped on subsequent logins; feeds FR-043 prescription auto-population |
