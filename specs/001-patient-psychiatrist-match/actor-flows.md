@@ -27,13 +27,18 @@
    - 3 consecutive wrong OTPs → account locked 15 minutes; remaining time shown on screen. (FR-001a)
    - Requesting a new OTP invalidates the current one immediately. (FR-001a)
 
-4. OTP verified → **Consent Screen** shown before any health data is collected. (FR-005)
+4. OTP verified → **Profile Setup Form** shown (first registration only; skipped on all subsequent logins). (FR-001k)
+   - One-page form: full name (text, required), date of birth (date picker, required), address — street, city, state, PIN code (all required).
+   - Patient cannot advance until all fields are submitted.
+   - Fields stored on PatientProfile; auto-populated onto all future prescriptions without re-prompting. (FR-043)
+
+5. Patient submits profile → **Consent Screen** shown before any health data is collected. (FR-005)
    - Plain-language explanation of what data is collected and why (DPDPA 2023).
    - Explicit recording disclosure: *"Your video sessions will be recorded via Zoom. The recording is transcribed and used to generate your care notes, reviewed and approved by your psychiatrist. Stored encrypted for 7 years."*
    - Patient must click "I Agree."
    - **Branch — declines:** Partial account (mobile + OTP record only) deleted immediately. No browse mode. Flow ends. (FR-005)
 
-5. Patient agrees → account created (status: `incomplete-intake`).
+6. Patient agrees → account created (status: `incomplete-intake`).
    - WhatsApp prompt shown: *"Use this number for WhatsApp notifications too?"* — pre-ticked.
    - Patient can enter a different WhatsApp number or opt out.
    - Helper note: *"Make sure this number is registered on WhatsApp."* No verification performed. (FR-025 / GAP-025 resolution)
@@ -42,14 +47,14 @@
 
 ### Phase 2: Intake Questionnaire
 
-6. Patient taken to the **Intake Questionnaire** immediately after consent. (FR-002)
+7. Patient taken to the **Intake Questionnaire** immediately after consent. (FR-002)
    - Multi-section form: presenting symptoms, severity, mental health history, current medications, lifestyle factors, psychiatrist preferences (gender, language).
    - Progress auto-saved after each section. (FR-003)
 
-7. Patient completes each section one at a time.
+8. Patient completes each section one at a time.
    - **Branch — exits mid-way:** On next login (OTP again), patient resumes exactly at the section where they left off. Nothing is lost. (FR-003)
 
-8. Patient submits all sections.
+9. Patient submits all sections.
    - PatientProfile created with all responses in normalised, queryable format. (FR-004)
    - Account status → `active`.
    - Redirected to Matching Flow immediately. (US1-3)
@@ -315,6 +320,7 @@
 
     **Optional fields:**
     - History summary, techniques used, capacity assessment notes, risk/benefit notes.
+    - Investigations ordered — free-text (e.g., "Hemogram, TFT, ECG"). Documents what was requested from the patient for Form B-1 compliance. Distinct from receiving results (v2). (FR-015b)
     - Mental Status Examination (MSE) — single free-text area for all 10 domains (appearance, behaviour, speech, mood, affect, thought process, thought content, perception, cognition, insight/judgment). Distinct labeled field, not merged with clinical observations. (FR-015b)
 
     **For Follow-Up and Urgent Review sessions only — Subjective (Patient Self-Report) section (all optional):**
