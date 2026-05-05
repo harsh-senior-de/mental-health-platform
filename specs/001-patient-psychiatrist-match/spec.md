@@ -455,6 +455,27 @@ correctly timed, personalized notifications matching their care plan and stated 
   events MUST be logged in the audit trail (patient ID, appointment reference, nudge
   number, send timestamp, delivery status).
 
+- **FR-048**: When a prescription is finalised (FR-043), the platform MUST compare the
+  medications in the new prescription against all prior approved prescriptions for the same
+  patient. Any medication appearing in the new prescription that was not present in any
+  prior prescription is classified as a "new initiation." For each new initiation, the
+  platform MUST trigger:
+
+  - **Patient WhatsApp nudge** (sent 7 days after prescription finalisation date, subject
+    to patient's notification preferences): "You've been on [DRUG NAME] for a week. How are
+    you feeling? Dr. [Name] (MCI Reg: [number]) recommended a check-in around now —
+    [booking link]." Suppressed if the patient already has a confirmed upcoming booking at
+    the time of sending.
+  - **Psychiatrist dashboard notification** (surfaced on the psychiatrist's dashboard from
+    day 7 onwards, until the patient books a follow-up or 30 days elapse): "Medication
+    initiation review due: [Patient first name] — [DRUG NAME] initiated [date]. [Book link]."
+
+  Drug name comparison is case-insensitive and normalised (strip trailing whitespace). A
+  medication is considered "prior" if it appears in any prescription with status `finalised`
+  for this patient, regardless of psychiatrist. Both trigger events MUST be logged in the
+  audit trail (patient ID, prescription reference, drug name, trigger type, send timestamp).
+  No trigger is fired for medications already present in a prior prescription.
+
 **E-Prescription**
 
 - **FR-043**: After each session, the platform MUST provide the psychiatrist with an
@@ -577,8 +598,14 @@ correctly timed, personalized notifications matching their care plan and stated 
   without re-running the matching algorithm.
   (2) "Find new match" — always visible alongside the "Previously seen" section. Triggers
   the matching algorithm and presents up to 5 ranked psychiatrists with name, photo,
-  specialization, languages, session fee, and earliest available slot. For first-time
-  patients (no previous bookings), only this section is shown.
+  specialization, languages, earliest available slot, and the session fee that applies to
+  this specific patient for this psychiatrist: Initial Assessment fee (FR-023a) for a
+  patient who has never booked this psychiatrist before; Follow-Up fee for a patient who
+  has at least one prior completed session with this psychiatrist. For first-time patients
+  (no previous bookings on the platform at all), only this section is shown.
+  The fee shown on the card MUST be the exact fee charged at checkout — no adjustment,
+  no surprise. Previously seen cards MUST also display the correct session-type fee using
+  the same logic.
   All sessions are Zoom video calls.
 - **FR-008**: The system MUST prevent a psychiatrist from being booked by more than one
   patient for the same time slot (idempotent booking).
@@ -769,6 +796,21 @@ correctly timed, personalized notifications matching their care plan and stated 
   appointment, the patient's portal MUST prominently display the Zoom join link so the
   patient can join their session directly from the platform without hunting through
   confirmation messages.
+- **FR-017a**: The patient dashboard MUST include a "Your Progress" view — a plain-language
+  longitudinal summary of the patient's care journey, containing no clinical jargon, no
+  automated diagnosis, and no AI-generated assessments. It MUST display:
+  (1) Symptom trajectory over time — a per-session indicator (Improved / Stable / Worsened)
+  sourced from the psychiatrist's approved session notes (FR-015b), presented as a simple
+  visual timeline;
+  (2) Medication adherence streak — consecutive days the patient has confirmed taking their
+  medications (sourced from FR-021b reminder completion data);
+  (3) Sessions completed counter — total number of approved sessions with this platform;
+  (4) Psychiatrist's recommended next session — the recommended date from the most recent
+  approved session note (FR-046), displayed as a human-readable prompt:
+  "Dr. [Name] recommends checking in around [date]." — with a direct "Book now" link.
+  All data shown is sourced exclusively from psychiatrist-approved records. The view is
+  not shown until the patient has at least one approved session on record. No comparison
+  against population norms or benchmarks. No estimated prognosis or recovery projections.
 - **FR-018**: The platform MUST use a booking-driven access model — there is no "active
   relationship" concept. A patient may book any psychiatrist at any time: either from the
   "Previously seen" section (all psychiatrists they have ever booked with, sorted by most
@@ -1366,3 +1408,116 @@ V1 captures Mental Status Examination as a single optional free-text field in FR
 V2 will upgrade this to a structured 10-domain form (appearance, behaviour, speech, mood,
 affect, thought process, thought content, perception, cognition, insight/judgment) once
 real clinical workflow patterns are established from v1 usage.
+
+### Medication Information Library (v2)
+
+For every medication in a patient's prescription history, show plain-language patient
+education in the portal: what the medication is, how to take it, what to do if a dose
+is missed, common side effects, and when to contact the psychiatrist vs. seek emergency
+care. For List C medications the patient may ask about, a clear explanation of why they
+cannot be prescribed via telemedicine. Purely educational — references only the patient's
+own prescribed medications, never population data or clinical guidance.
+
+**What must be designed correctly in v1**: The Prescription entity MUST store medication
+names in normalised form so the library can be keyed to them without schema changes.
+
+### Match Transparency — "Why You Were Matched" (v2)
+
+Template-based plain-language explanation on each psychiatrist card explaining why this
+psychiatrist was suggested (specialisation match, language match, symptom overlap from
+intake). Generated from matching factors already computed — no ML, no patient data shown
+to others. Improves booking conversion by making the algorithm legible.
+
+**What must be designed correctly in v1**: Matching factor scores MUST be stored alongside
+the match result (not discarded after sorting) so v2 can render the rationale without
+re-running the algorithm.
+
+### One-Tap Emergency Rerouting (v2)
+
+A persistent "I need help right now" button visible on every page for logged-in patients.
+Opens a single modal with: (1) tappable crisis helpline numbers (iCall, Vandrevala),
+(2) one-tap Urgent Review booking if the patient has a prior Initial Assessment, and
+(3) a pre-composed message to their most recent psychiatrist's in-platform inbox. No
+clinical triage — fast pathways to existing mechanisms only.
+
+**What must be designed correctly in v1**: The patient's session history lookup (has prior
+Initial Assessment?) and the in-platform messaging inbox referenced in option 3 must be
+designed as accessible APIs, not tightly coupled UI components.
+
+### Structured Symptom Pre-Check Before Follow-Ups (v2)
+
+24–48 hours before every Follow-Up or Urgent Review session, send the patient a WhatsApp
+with a 4-question self-report form (medication adherence, side effects, mood rating 1–10,
+significant life events). Responses pre-populate the Subjective section of the session
+notes form (FR-015b) so the psychiatrist sees the patient's self-report before the session
+begins. Saves 5–10 minutes per follow-up and produces structured longitudinal symptom data.
+
+**What must be designed correctly in v1**: The Subjective section fields in FR-015b MUST
+be stored as discrete database columns (not a single JSON blob) so v2 can pre-populate
+individual fields from the pre-check form response.
+
+### Family / Caregiver Information Portal (v2)
+
+Let a patient grant their MHCA 2017 nominated representative a strictly scoped view:
+session dates and times, medication names and reminder times, and recommended follow-up
+date. No clinical notes, intake responses, or diagnoses. The nominated representative
+can optionally receive follow-up nudges alongside the patient. Targets the family member
+who often drives treatment continuation decisions in Indian mental health contexts.
+
+**What must be designed correctly in v1**: The `nominated_representative_name` and
+`nominated_representative_contact` fields already on PatientProfile (FR-039 resolution)
+provide the foundation. The consent model MUST be extensible to cover caregiver portal
+consent as a separate, granular permission in v2.
+
+### Dropout Early Warning System (v2)
+
+A psychiatrist-facing panel surfacing patients at risk of disengaging: overdue follow-up
+date, recent no-show, two or more unresponded nudges, or new medication initiation without
+a review booked. For each at-risk patient, a one-tap action to send a WhatsApp re-engagement
+message on the psychiatrist's behalf. Converts dropout from a silent statistic into an
+actionable per-patient signal.
+
+**What must be designed correctly in v1**: Appointment status, notification delivery
+records, and prescription initiation events MUST each carry a patient reference in a
+queryable format. The signal aggregation query in v2 joins these three tables — designing
+them with consistent foreign keys in v1 prevents a backfill migration.
+
+### De-identified Aggregate Analytics for Agency Admins (v2)
+
+An Agency Admin view of fully de-identified, aggregate clinical population data across
+their psychiatrist panel: most common presenting symptom categories, average sessions per
+patient, average time between sessions, no-show rates per psychiatrist. Minimum cell size
+guardrail (≥10 patients per metric) prevents individual re-identification. No individual
+patient records ever accessible to Agency Admins.
+
+**What must be designed correctly in v1**: Intake responses MUST be stored in normalised,
+queryable columns (already required by FR-004). Appointment and no-show records MUST
+carry agency and psychiatrist references so the aggregation can be scoped correctly.
+
+### Validated Outcome Tracking — PHQ-9 / GAD-7 (v2)
+
+After each approved session note, if the psychiatrist tags a condition category (depression
+→ PHQ-9; anxiety → GAD-7), the platform sends the patient the relevant validated
+questionnaire at the midpoint before their next appointment via WhatsApp. Score displayed
+to the patient in plain language ("PHQ-9 today: 12 — moderate. Last time: 16.") and
+surfaced in the psychiatrist's session notes as a pre-populated data point for the next
+visit. Creates objective, longitudinal treatment response data no Indian competitor has.
+
+**What must be designed correctly in v1**: The session notes form MUST support optional
+structured tags (condition categories) as discrete fields — not buried in free text — so
+v2 can trigger the questionnaire dispatch without parsing clinical notes.
+
+### Pharmacy Partner Integration — Prescription Last-Mile (v2)
+
+Partner with pharmacy networks (PharmEasy, 1mg, Netmeds) to offer a "Get your prescription
+filled" button from the patient's prescription view. List A drugs: one-tap sends the
+e-prescription for discreet home delivery. List C gap: clear explanation plus links to
+partner in-person pharmacies. Closes the prescription last-mile that every competitor
+leaves to the patient, particularly important for Tier 2/3 city patients facing pharmacy
+stigma.
+
+**What must be designed correctly in v1**: The Prescription entity and PDF generation
+pipeline (FR-043) MUST be designed so the prescription data can be serialised into a
+pharmacy API payload in v2 without restructuring the core entity. At minimum, v1 should
+add plain-text deep links to 1mg/Netmeds on the prescription view as a zero-integration
+stepping stone.

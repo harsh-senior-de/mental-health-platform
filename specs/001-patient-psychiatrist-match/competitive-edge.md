@@ -65,6 +65,7 @@ entity) — this is primarily a UI investment, not a new data pipeline.
 
 **Implementation complexity**: Low
 **When to build**: v1
+**Status**: **INCLUDED IN SPEC** — FR-017a added to spec.md
 
 ---
 
@@ -94,6 +95,7 @@ weeks on a new medication. No Indian competitor does this. Structurally, a marke
 **Implementation complexity**: Low (prescription comparison logic + WhatsApp trigger;
 data already in Prescription entity)
 **When to build**: v1
+**Status**: **INCLUDED IN SPEC** — FR-048 added to spec.md
 
 ---
 
@@ -125,6 +127,7 @@ exists in the platform for the hard-block logic — this is a display decision.
 
 **Implementation complexity**: Low
 **When to build**: v1
+**Status**: **DEFERRED TO v2**
 
 ---
 
@@ -155,6 +158,7 @@ matching at all.
 **Implementation complexity**: Low (template-based text generation from matching factor
 scores; no ML required)
 **When to build**: v1
+**Status**: **DEFERRED TO v2**
 
 ---
 
@@ -177,6 +181,7 @@ product level.
 
 **Implementation complexity**: Low (data already exists; primarily a UX/display decision)
 **When to build**: v1
+**Status**: **INCLUDED IN SPEC** — FR-007 updated to wire session-type–matched fee to match card display
 
 ---
 
@@ -207,6 +212,7 @@ culture, but even they have no in-app emergency routing of this specificity.
 **Implementation complexity**: Low-Medium (persistent UI component; conditional routing
 based on patient session history; Urgent Review flow already specced)
 **When to build**: v1
+**Status**: **DEFERRED TO v2**
 
 ---
 
@@ -243,6 +249,7 @@ contextualised channel no competitor has.
 retrieval from approved records only; hard guardrails for List C drugs, crisis detection,
 and clinical boundary enforcement)
 **When to build**: v2
+**Status**: **CONFIRMED v2** — note in spec Future Readiness
 
 ---
 
@@ -276,6 +283,7 @@ platform support.
 **Implementation complexity**: Low-Medium (WhatsApp outbound link + 4-question web form
 + pre-population of session notes form)
 **When to build**: v2
+**Status**: **CONFIRMED v2** — note in spec Future Readiness
 
 ---
 
@@ -307,6 +315,7 @@ touchpoint per patient that deepens platform stickiness without compromising cli
 **Implementation complexity**: Medium (new access model for nominated representative;
 careful data scoping; consent architecture)
 **When to build**: v2
+**Status**: **CONFIRMED v2** — note in spec Future Readiness
 
 ---
 
@@ -336,6 +345,7 @@ operationally critical to their practice, not just a booking tool.
 **Implementation complexity**: Medium (signal aggregation from appointment, prescription,
 and notification records; WhatsApp outbound on behalf of psychiatrist)
 **When to build**: v2
+**Status**: **CONFIRMED v2** — note in spec Future Readiness
 
 ---
 
@@ -364,6 +374,7 @@ health telemedicine competitor offers this.
 **Implementation complexity**: Medium (aggregation pipeline with minimum cell-size privacy
 guardrails; audit logging to prevent individual data leakage)
 **When to build**: v2
+**Status**: **CONFIRMED v2** — note in spec Future Readiness
 
 ---
 
@@ -392,6 +403,7 @@ improvement value for agency partners.
 **Implementation complexity**: Medium (questionnaire delivery via WhatsApp; scoring
 engine; longitudinal display; condition tag linkage in session notes)
 **When to build**: v2
+**Status**: **CONFIRMED v2** — note in spec Future Readiness
 
 ---
 
@@ -420,6 +432,7 @@ pharmacist refuses an e-prescription for a controlled substance.
 **Implementation complexity**: Medium-High (pharmacy API integrations; List C referral
 note generation in prescription tool; geographic coverage limited at launch)
 **When to build**: v2 (v1: at minimum, add educational copy with deep links to 1mg/Netmeds)
+**Status**: **CONFIRMED v2** — note in spec Future Readiness
 
 ---
 
