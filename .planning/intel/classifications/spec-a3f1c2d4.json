@@ -1,0 +1,29 @@
+{
+  "source_path": "/home/harsh/workspace/mental-health-platform/specs/001-patient-psychiatrist-match/spec.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Feature Specification: Mental Health Platform — Patient Intake, Psychiatrist Matching & Personalized Care",
+  "summary": "Technical specification for patient intake, psychiatrist matching, session booking, care recommendations, notifications, and data lifecycle for the Indian mental health platform.",
+  "scope": [
+    "patient-onboarding",
+    "intake-questionnaire",
+    "psychiatrist-matching",
+    "appointment-booking",
+    "zoom-integration",
+    "razorpay-payments",
+    "care-recommendations",
+    "whatsapp-notifications",
+    "e-prescriptions",
+    "data-lifecycle",
+    "session-feedback",
+    "platform-admin",
+    "agency-admin",
+    "DPDPA-compliance",
+    "MHCA-2017-compliance"
+  ],
+  "cross_refs": [],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

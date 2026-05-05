@@ -1,0 +1,13 @@
+{
+  "source_path": "/home/harsh/workspace/mental-health-platform/specs/001-patient-psychiatrist-match/checklists/requirements.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Specification Quality Checklist: Mental Health Platform — Patient Intake, Psychiatrist Matching & Personalized Care",
+  "summary": "A checklist validating completeness and quality of the patient-psychiatrist match feature specification before planning proceeds.",
+  "scope": ["spec quality checklist", "patient intake", "psychiatrist matching", "personalized care", "feature readiness"],
+  "cross_refs": ["../spec.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

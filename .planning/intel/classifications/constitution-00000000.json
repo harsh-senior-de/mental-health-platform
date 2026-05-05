@@ -1,0 +1,34 @@
+{
+  "source_path": "/home/harsh/workspace/mental-health-platform/.specify/memory/constitution.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Mental Health Platform Constitution — India",
+  "summary": "Non-negotiable architectural, clinical, privacy, and development principles governing the India mental health platform at version 1.1.0.",
+  "scope": [
+    "privacy",
+    "data sovereignty",
+    "clinical safety",
+    "accessibility",
+    "test-driven development",
+    "observability",
+    "matching engine",
+    "notification system",
+    "architecture",
+    "security",
+    "DPDPA 2023",
+    "Mental Healthcare Act 2017",
+    "PostgreSQL",
+    "service-oriented architecture"
+  ],
+  "cross_refs": [
+    "CLAUDE.md",
+    ".specify/templates/plan-template.md",
+    ".specify/templates/spec-template.md",
+    ".specify/templates/tasks-template.md",
+    ".specify/templates/commands/"
+  ],
+  "locked": true,
+  "precedence": null,
+  "notes": ""
+}

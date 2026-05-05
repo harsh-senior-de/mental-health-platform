@@ -1,0 +1,26 @@
+{
+  "source_path": "/home/harsh/workspace/mental-health-platform/specs/001-patient-psychiatrist-match/competitive-edge.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Competitive Edge — Product Differentiation Ideas",
+  "summary": "A prioritised list of product differentiation ideas targeting Indian telepsychiatry dropout and trust gaps, benchmarked against competitors like Practo, MFine, and Amaha.",
+  "scope": [
+    "patient-psychiatrist-match",
+    "dropout-prevention",
+    "WhatsApp-care-companion",
+    "medication-safety-net",
+    "match-transparency",
+    "crisis-routing",
+    "outcome-tracking",
+    "pharmacy-integration",
+    "agency-analytics"
+  ],
+  "cross_refs": [
+    "research/psychiatry-sessions-india.md",
+    "specs/001-patient-psychiatrist-match/spec.md"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

@@ -5,8 +5,12 @@ Mode: merge
 Sources: DOC x5 (psychiatry-sessions-india.md, requirements.md checklist, gaps.md tracker,
          competitive-edge.md, actor-flows.md cross-cutting notes)
 Generated: 2026-05-03
-Last updated: 2026-05-04 (merge run — gap status updated to 52/52 resolved; competitive
-differentiation context added; actor-flow friction points and UX opportunities added)
+Last updated: 2026-05-05 (merge run — Session 16 changes applied:
+  competitive-edge.md status labels now show INCLUDED IN SPEC / DEFERRED TO v2 / CONFIRMED v2;
+  Idea 11 (in-platform messaging) now explicitly DEFERRED TO v2 in competitive-edge.md;
+  prior WARNING on Idea 11 option 3 downgraded — see INGEST-CONFLICTS.md INFO section;
+  gap count updated to 62/62 resolved — GAP-053 through GAP-062 added and resolved in
+  this run from Session 16 UX/friction review)
 
 ---
 
@@ -64,6 +68,8 @@ mandatory for Initial Assessment per regulatory requirement).
 ## TOPIC: Competitive Differentiation Strategy
 
 source: specs/001-patient-psychiatrist-match/competitive-edge.md
+last updated: 2026-05-05 (Session 16 run — status labels finalised per competitive-edge.md
+current state)
 
 Primary problem to solve: 67.77% of Indian telepsychiatry patients drop out after 1–3
 sessions (NIMHANS TAC Clinic data). Every differentiation idea either directly attacks
@@ -73,71 +79,72 @@ Key insight from the document: Ideas 2, 3, 7, and 9 require no new data pipeline
 the data to power them is already captured by existing FRs. They are primarily UI and
 notification decisions — buildable in v1 at minimal incremental cost.
 
-v1 differentiation ideas (flagged for planner consideration):
+v1 differentiation ideas — current status per competitive-edge.md:
 
-Idea 2 — Treatment Phase Progress Dashboard: Patient-facing "Your Progress" view showing
-a longitudinal picture of their care using symptom trajectory (already in FR-015b), medication
-adherence streak, sessions completed, and next recommended session date. No automated
-diagnosis. Data already exists in the spec (FR-015b, FR-046, CareRecommendation entity);
-primarily a UI investment.
+Idea 2 — Treatment Phase Progress Dashboard (INCLUDED IN SPEC — FR-017a added):
+Patient-facing "Your Progress" view showing symptom trajectory (Improved/Stable/Worsened
+per approved session note), medication adherence streak (consecutive days with "Mark as
+taken" confirmation via FR-021b button template), sessions completed counter, and next
+recommended session prompt (from FR-046). Shown only after at least one approved session.
+No clinical jargon, no automated diagnosis. Data already exists in the spec.
 
-Idea 3 — Medication Initiation Safety Net: When a new medication is issued, automatically
-send a WhatsApp message to the patient at the 7-day mark noting they've been on the
-medication for a week and suggesting a check-in. Extends FR-043 + FR-046 auto-suggest
-(2-week follow-up on new prescription) with an active patient-facing safety signal. Low
-complexity — prescription comparison logic + WhatsApp trigger.
+Idea 3 — Medication Initiation Safety Net (INCLUDED IN SPEC — FR-048 added):
+When a psychiatrist issues a prescription containing a drug not in any prior prescription
+for that patient: (a) patient WhatsApp nudge at day 7 post-finalisation, (b) psychiatrist
+dashboard notification from day 7 until patient books follow-up or 30 days elapse. Both
+configurable via PlatformConfiguration. Both audit-logged. Closes the dropout gap at the
+most clinically critical window — the first weeks on a new medication.
 
-Idea 6 — In-Platform Medication Information Library: For every medication in a patient's
-prescription history, show plain-language information. For List C medications patients may
-ask about, clear explanation that in-person visit is required under Indian telemedicine rules.
-The List C content already exists in the platform for the hard-block logic.
+Idea 6 — In-Platform Medication Information Library (DEFERRED TO v2):
+Plain-language medication information for each drug in the patient's prescription history,
+including List C boundary explanation.
 
-Idea 7 — Match Transparency "Why You Were Matched" Card: On each match card, a plain-language
-"Why this match" section generated from matching factors already captured (symptom match
-dimensions, language preferences, specialisation tags). Template-based text generation from
-matching factor scores; no ML required.
+Idea 7 — Match Transparency "Why You Were Matched" Card (DEFERRED TO v2):
+Plain-language explanation of match factors on each psychiatrist card. Template-based text
+generation from matching factor scores; no ML required. Deferred despite low complexity.
 
-Idea 9 — Session Type-Matched Pricing Transparency: Show the correct fee for the session
-type being booked on the match list. A first-time patient sees the Initial Assessment fee; a
-returning patient sees the Follow-Up fee. The spec already supports three fees per psychiatrist
-(FR-023a) and shows session fee on match cards (FR-007). This is wiring the two together
-correctly — already captured as an acceptance criterion in REQ-availability-management.
+Idea 9 — Session Type-Matched Pricing Transparency (INCLUDED IN SPEC — FR-007 updated):
+Match list shows the correct fee for the session type being booked. "Previously seen" cards
+show Follow-Up fee for returning patients. "Find new match" cards show Initial Assessment
+fee for first-time patients with that psychiatrist; Follow-Up fee for returning patients.
+Fee on card equals exact fee at checkout. Already captured as an acceptance criterion in
+REQ-psychiatrist-matching.
 
-Idea 11 — "I Need Help Now" Button: Persistent button visible on every page for logged-in
-patients. Opens a modal with: (1) crisis helpline numbers, (2) Urgent Review booking if
-patient has a prior Initial Assessment, (3) pre-composed message to prior psychiatrist's
-in-platform inbox. Low-Medium complexity. The helplines requirement is already in CONSTRAINT-030
-(FR-042). The Urgent Review routing is already specced. The in-platform psychiatrist inbox
-message feature is NOT currently in the spec — this is a new UI element that would need a
-separate spec if adopted. Flag for planner awareness; do not build without spec.
+Idea 11 — "I Need Help Now" Button (DEFERRED TO v2):
+Persistent button visible on every page for logged-in patients. The first two options —
+crisis helpline numbers (already in CONSTRAINT-030 / FR-042) and Urgent Review routing
+(already in FR-042) — were the only live v1 considerations. Option 3 (in-platform messaging
+to psychiatrist inbox) is NOT specced and the whole feature is now explicitly marked as
+DEFERRED TO v2 in competitive-edge.md. The prior WARNING from the 2026-05-04 synthesis run
+about Idea 11 option 3 is no longer actionable — the planner cannot build Idea 11 option 3
+or the overall button at this time. See INFO entry in INGEST-CONFLICTS.md.
 
-v2 differentiation ideas (noted for future readiness):
+v2 differentiation ideas (confirmed):
 
-Idea 1 — WhatsApp-Native Context-Aware Care Companion: Two-way WhatsApp interaction using
-approved care history as context; routes clinical questions to psychiatrist inbox; hard
-guardrails for crisis and clinical boundaries. Requires Claude API (or equivalent) for
-response generation. Aligns with DEC-016 (AI/ML extensibility). Constitution compliance:
-the companion must never claim to diagnose, treat, or replace the psychiatrist — consistent
-with DEC-003 and DEC-009.
+Idea 1 — WhatsApp-Native Context-Aware Care Companion (CONFIRMED v2): Two-way WhatsApp
+interaction using approved care history as context; routes clinical questions to psychiatrist
+inbox; hard guardrails for crisis and clinical boundaries. Requires Claude API (or equivalent)
+for response generation. Aligns with DEC-016 (AI/ML extensibility).
 
-Idea 4 — Structured Symptom Pre-Check before Follow-Ups: WhatsApp 4-question pre-session
-form; responses pre-populate Subjective SOAP section (already in FR-015b per GAP-046). Low
-additional spec work needed in v2.
+Idea 4 — Structured Symptom Pre-Check before Follow-Ups (CONFIRMED v2): WhatsApp
+4-question pre-session form; responses pre-populate Subjective SOAP section (already in
+FR-015b per GAP-046). Low additional spec work needed in v2.
 
-Idea 5 — Family/Caregiver Information Portal: Non-clinical view for nominated representative
-(MHCA 2017) showing session dates, medication names and reminder times, follow-up date.
-No clinical notes exposed. Deferred to v2 — authorisation flow adds complexity.
+Idea 5 — Family/Caregiver Information Portal (CONFIRMED v2): Non-clinical view for
+nominated representative. Deferred — authorisation flow adds complexity.
 
-Idea 8 — Dropout Early Warning System: Psychiatrist-facing risk panel for patients at risk
-of disengaging. Medium complexity (signal aggregation from appointment, prescription, and
-notification records).
+Idea 8 — Dropout Early Warning System (CONFIRMED v2): Psychiatrist-facing risk panel for
+patients at risk of disengaging. Medium complexity (signal aggregation from appointment,
+prescription, and notification records).
 
-Idea 12 — Validated Outcome Tracking (PHQ-9 / GAD-7): Post-session questionnaires delivered
-via WhatsApp; scores surfaced in psychiatrist notes. Medium complexity.
+Idea 10 — De-identified Agency Analytics (CONFIRMED v2): Aggregate population analytics
+for Agency Admins with minimum cell-size privacy guardrails.
 
-Idea 13 — Pharmacy Partner Integration: "Get prescription filled" button; integrations with
-PharmEasy, 1mg, Netmeds. Medium-High complexity. v1 minimum: educational copy with deep
-links to pharmacy platforms.
+Idea 12 — Validated Outcome Tracking PHQ-9 / GAD-7 (CONFIRMED v2): Post-session
+questionnaires delivered via WhatsApp; scores surfaced in psychiatrist notes.
+
+Idea 13 — Pharmacy Partner Integration (CONFIRMED v2): "Get prescription filled" button;
+integrations with PharmEasy, 1mg, Netmeds.
 
 Ideas explicitly rejected:
 - AI-generated diagnosis or risk scoring: violates DEC-003 and DEC-009 (constitution)
@@ -307,14 +314,18 @@ Patient data access right: patient can request records via Form A; must be provi
 Note: GAP-034 (MHCA 2017 Form B-1 documentation compliance) is now RESOLVED. FR-015b has
 been expanded with all mandatory Form B-1 fields. The CareRecommendation entity serves as
 the platform's Form B-1 equivalent with extended fields including: presenting complaints,
-clinical observations, treatment type, consent status, identity verification checkbox (Form
-B-1 equivalent), investigations ordered (free-text), MSE free-text, Subjective SOAP section
-for Follow-Up/Urgent Review, advance directive and nominated representative (pre-populated
-read-only from PatientProfile). Form B-1 completion declaration checkbox required before
-approval.
+clinical observations, treatment type, treatment consent checkbox (explicit wording: "The
+patient has given verbal consent to the treatment discussed in this session" — updated in
+Session 16 Q3), identity verification checkbox (audit-logged), investigations ordered
+(free-text), MSE free-text, Subjective SOAP section for Follow-Up/Urgent Review, advance
+directive and nominated representative (pre-populated read-only from PatientProfile). Form
+B-1 completion declaration checkbox required before approval.
 
 Note: GAP-041 resolved: FR-036 (data export) now satisfies both DPDPA 2023 (72h) and MHCA
-2017 Form A (15-day) in a single flow, since 72h < 15 days.
+2017 Form A (15-day) in a single flow, since 72h < 15 days. However, prescription PDFs are
+no longer included in the export (Session 16 reversal) — the approved session notes
+(CareRecommendation records) are the formal clinical record included in the export.
+Prescription PDFs are accessible individually from appointment history.
 
 ---
 
@@ -326,8 +337,7 @@ The specification quality checklist for feature 001-patient-psychiatrist-match i
 passing as of the latest update. All items in the content quality, requirement completeness,
 and feature readiness sections are checked. No NEEDS CLARIFICATION markers remain. All
 acceptance scenarios are defined. All edge cases are fully resolved. Scope is clearly
-bounded. The spec is confirmed ready for the plan phase (/speckit-plan). 15 clarification
-sessions completed covering all 52 gaps.
+bounded. The spec is confirmed ready for the plan phase (/speckit-plan).
 
 ---
 
@@ -335,54 +345,15 @@ sessions completed covering all 52 gaps.
 
 source: specs/001-patient-psychiatrist-match/checklists/gaps.md
 
-52 total gaps identified across all clarification sessions and research scans.
-52 gaps RESOLVED.
+62 total gaps identified across all clarification sessions and research scans.
+62 gaps RESOLVED.
 0 gaps OPEN (Critical, Important, or Low).
 
-All gaps previously flagged as open in the prior synthesis (GAP-025, GAP-026, GAP-027,
-GAP-032, GAP-033, GAP-034, GAP-035) are now resolved:
+GAP-001 through GAP-052 resolved across Sessions 1–15 and associated research scans.
+GAP-053 through GAP-062 added and resolved in this run (Session 16 UX/friction review).
 
-- GAP-025 (LOW): WhatsApp number stored as entered; helper note shown; SMS is the
-  guaranteed fallback. No verification required. FR-001 unchanged.
-- GAP-026 (LOW): Hard gate — decline deletes partial account immediately; no browse mode.
-  FR-005 updated.
-- GAP-027 (LOW): Sequential GST invoice numbering — format [PREFIX]/[FY]/[SEQUENCE];
-  gapless; resets April 1. invoice_number field on Payment entity, immutable once issued.
-  FR-041 updated.
-- GAP-032 (IMPORTANT): Follow-up interval picker added via FR-046. Phase tracking labels
-  (Acute/Continuation/Maintenance) remain deferred to v2.
-- GAP-033 (IMPORTANT): Three separate fees per psychiatrist by session type (Initial
-  Assessment, Follow-Up, Urgent Review). Bulk update supported. FR-023a updated.
-- GAP-034 (IMPORTANT, legal): FR-015b expanded with all Form B-1 mandatory fields.
-  Form B-1 completion declaration checkbox required before session record approval.
-- GAP-035 (IMPORTANT): Caregiver Consultation deferred to v2 per design. session_type
-  is string enum in v1 — no schema migration needed to add it later.
-
-Additionally, GAP-036 through GAP-052 (from Sessions 14 and 15) are all resolved:
-- GAP-036: List B reference panel added (informational only; automated enforcement v2).
-- GAP-037: Platform confirmed not a crisis service; renamed to Urgent Review; helplines
-  are the permanent crisis pathway on all three surfaces.
-- GAP-038: Session recording disclosure added to FR-005 consent screen.
-- GAP-039: Advance directive + nominated representative optional fields on PatientProfile;
-  displayed read-only in session notes.
-- GAP-040: Two-nudge re-engagement sequence after patient no-show added via FR-047.
-- GAP-041: FR-036 unified to cover DPDPA + MHCA Form A; package expanded to include
-  full clinical records including prescriptions.
-- GAP-042: FR-043 auto-populates "2 weeks" in recommended next session field on
-  prescription finalisation if blank.
-- GAP-043: MCI registration number added to FR-019 Tier 2 messages and FR-043
-  WhatsApp prescription delivery template.
-- GAP-044: MSE free-text field added to FR-015b as distinct labeled area.
-- GAP-045: FR-021b added — patient sets daily reminder time per medication; auto-runs
-  for prescription duration.
-- GAP-046: Subjective SOAP section added to FR-015b for Follow-Up and Urgent Review.
-- GAP-047: Mandatory identity verification checkbox in FR-015b; audit-logged.
-- GAP-048: Video-only for all v1 sessions confirmed.
-- GAP-049: Medication initiation review kept merged into Follow-Up in v1.
-- GAP-050: Investigation report attachments deferred to v2.
-- GAP-051: Optional free-text "Investigations ordered" field added to FR-015b.
-- GAP-052: FR-001k added — mandatory profile setup step (name, DOB, address) after first
-  OTP verification.
+All gaps previously flagged as open in prior synthesis runs are now resolved, including
+GAP-025, GAP-026, GAP-027, GAP-032, GAP-033, GAP-034, GAP-035, GAP-036 through GAP-052.
 
 Deferred to planning phase (not spec gaps):
 - Zoom waiting room default settings
@@ -434,8 +405,7 @@ design, not spec gaps):
 
 - Login screen message for patients who lost their mobile number (FR-001j).
 - Viewing historical consent record from profile settings (FR-005).
-- Concurrent slot booking conflict (two patients, same slot) — race condition branch
-  (FR-008).
+- Concurrent slot booking conflict (two patients, same slot) — race condition branch (FR-008).
 - No psychiatrist with availability in next 7 days — next available date surface (FR-010a).
 - Payment succeeded but slot became unavailable race condition (FR-011b).
 - Slot release on abandoned checkout expiry (FR-011c).
@@ -457,6 +427,12 @@ design, not spec gaps):
 - Platform Admin zero clinical data access — explicit statement needed in admin portal flows
   (FR-034).
 - Per-job permanent PII-free audit entry in the deletion dashboard (FR-030).
+
+Note on Idea 11 from actor-flows.md UX section: The "I Need Help Now" button (option 3 —
+in-platform messaging to psychiatrist inbox) was flagged as a WARNING in the prior synthesis
+run. competitive-edge.md now explicitly marks Idea 11 as DEFERRED TO v2. The prior WARNING
+is no longer actionable and has been downgraded to INFO in the INGEST-CONFLICTS.md. The
+planner should not scope Idea 11 (any option) for v1.
 
 ---
 
@@ -502,3 +478,10 @@ PHQ-9 / GAD-7 Validated Outcome Tracking (v2): Session notes form already captur
 trajectory (Improved/Stable/Worsened). Adding structured questionnaire scoring in v2 would
 extend this data model. Condition tag linkage in session notes would need to be added to
 FR-015b in a v2 spec.
+
+Medication Adherence Infrastructure (v1 foundation for v2 expansion): FR-021b WhatsApp
+button template with "Mark as taken" quick-reply is the v1 mechanism. The adherence
+confirmation event model (medication ID, patient ID, timestamp) is the v1 data foundation.
+The FR-017a streak display consumes this data. In v2, this infrastructure supports richer
+adherence analytics (e.g., PHQ-9/GAD-7 correlation with adherence data, family caregiver
+adherence visibility per Idea 5).

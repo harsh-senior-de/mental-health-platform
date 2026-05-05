@@ -1,9 +1,9 @@
 # Requirements
 
 Feature: 001-patient-psychiatrist-match
-Source: specs/001-patient-psychiatrist-match/spec.md (fully clarified, 15 sessions, all 52 gaps closed)
+Source: specs/001-patient-psychiatrist-match/spec.md (fully clarified, 16 sessions, all 62 gaps closed)
 Extracted: 2026-05-03
-Last updated: 2026-05-04 (merge run — 3 requirements added, 6 updated; all open-gap annotations removed)
+Last updated: 2026-05-05 (merge run — 4 requirements added, 12 updated; Session 16 main + GAP-053–062 UX review)
 Status: All v1 requirements ready for planning
 
 ---
@@ -72,7 +72,11 @@ After reset, the active session is invalidated. TOTP is not reset during a passw
 **Description**: Strict provisioning hierarchy: PlatformAdmins create other PlatformAdmins
 and first AgencyAdmin per agency. AgencyAdmins create additional AgencyAdmins and
 Psychiatrists for their own agency. All creation triggers a time-limited activation email
-(default 24h) for password and TOTP enrollment.
+(default 24h) for password and TOTP enrollment. Psychiatrist profile activation requires
+only mandatory fields (name, MCI registration number, email); optional profile fields
+(photo, bio, languages, specialisation) may be completed post-activation. A psychiatrist
+profile is hidden from the patient-facing matching pool until the Agency Admin has set at
+least one session-type fee and the psychiatrist has published at least one availability slot.
 **v1**: Yes
 
 ### REQ-password-policy
@@ -113,8 +117,12 @@ no platform access.
 **Source**: FR-002, FR-003, FR-004
 **Description**: Structured intake questionnaire covering presenting symptoms, severity,
 mental health history, current medications, lifestyle factors, and psychiatrist preferences
-(gender, language). Progress saved after each section (resumable). Completion creates a
-normalised, queryable patient profile and redirects to matching.
+(gender, language). Each section displays a section counter ("Section 2 of 6") and an
+estimated completion time for the remaining sections. Progress saved after each section
+(resumable). A patient who exits mid-questionnaire is deep-linked directly back to the
+last incomplete section on next login — no re-answering completed sections, no
+hunting through the intake from the start. Completion creates a normalised, queryable
+patient profile and redirects to matching.
 **v1**: Yes
 
 ### REQ-intake-editability
@@ -133,9 +141,15 @@ booking window for that patient receive an in-platform notification on any edit.
 **Description**: Scoring-based matching engine across all eligible psychiatrists from all
 active agencies. Factors: symptom type, severity, patient preferences (language, gender),
 availability, and rating percentile. All factor weights in PlatformConfiguration. Booking
-screen shows "Previously seen" (prior bookings, sorted by most recent) and "Find new match"
-(full algorithm, up to 5 ranked results). Never shows a dead-end — "closest available" label
-used when scores fall below configurable threshold. Idempotent booking prevents double-booking.
+screen shows "Previously seen" (prior bookings, sorted by most recent — each card shows
+percentile rank and Follow-Up fee, the correct session-type fee for a returning patient)
+and "Find new match" (full algorithm, up to 5 ranked results — each card shows the
+session-type fee that applies: Initial Assessment fee for patients with no prior completed
+session with that psychiatrist; Follow-Up fee for patients with at least one prior completed
+session with that psychiatrist). The fee shown on every match card is the exact fee charged
+at checkout — no adjustment, no surprise. Never shows a dead-end — "closest available"
+label used when scores fall below configurable threshold. Idempotent booking prevents
+double-booking.
 **v1**: Yes
 
 ---
@@ -159,11 +173,13 @@ notified, appointment is cancelled, and patient is prompted to rebook.
 ### REQ-appointment-booking
 **Source**: FR-011, FR-011a, FR-011b, FR-011c, FR-011d, FR-011e
 **Description**: Real-time availability check at slot selection. Slot held up to 10 minutes
-during checkout. Razorpay INR payment with three-path confirmation (HMAC signature, webhook,
-reconciliation job every 15 min). Payment confirmed but booking cannot complete → immediate
-full refund. Zoom meeting created on booking confirmation (up to 3 retries; on all-retry
-failure: cancel booking, full refund, notify patient and psychiatrist, log as operational
-metric). Server-side idempotency key prevents duplicate charges.
+during checkout; a visible countdown timer is displayed throughout checkout, with a 2-minute
+warning alert ("Only 2 minutes left to complete payment — your slot will be released").
+Razorpay INR payment with three-path confirmation (HMAC signature, webhook, reconciliation
+job every 15 min). Payment confirmed but booking cannot complete → immediate full refund.
+Zoom meeting created on booking confirmation (up to 3 retries; on all-retry failure: cancel
+booking, full refund, notify patient and psychiatrist, log as operational metric).
+Server-side idempotency key prevents duplicate charges.
 **v1**: Yes
 
 ### REQ-session-types
@@ -179,21 +195,30 @@ session_type displayed in all booking confirmations, appointment views, and sess
 ### REQ-cancellation-refund
 **Source**: FR-012, FR-012a, FR-012b
 **Description**: Cancellations ≥24h before session: full Razorpay refund. Cancellations
-<24h: non-refundable; confirmation modal must show exact fee forfeited before patient can
-proceed. Rescheduling = guided cancel-then-rebook (no separate state machine). Psychiatrist
-cancellations always issue full refund. Psychiatrist deactivation: immediate cancel and
-full refund for all upcoming bookings; patients notified with admin-supplied reason and
-rebook link. All refund notifications state "5–7 business days".
+<24h: non-refundable; confirmation modal must show exact fee forfeited and offer a
+"Reschedule instead?" option before the patient can confirm cancellation. Rescheduling =
+guided cancel-then-rebook (no separate state machine). Psychiatrist cancellations always
+issue full refund. Psychiatrist deactivation: before deactivation is confirmed, Platform
+Admin sees an impact preview (number of upcoming confirmed bookings, total refund amount
+in INR, affected dates and session types); Platform Admin must type the psychiatrist's MCI
+registration number to confirm deactivation. On confirmation: immediate cancel and full
+refund for all upcoming bookings; patients notified with admin-supplied reason and rebook
+link. All refund notifications state "5–7 business days".
 **v1**: Yes
 
 ### REQ-no-show-handling
-**Source**: FR-045
+**Source**: FR-045, FR-047
 **Description**: Psychiatrist no-show auto-detected via Zoom webhook participant data.
 Refund governed by PlatformConfiguration toggle (default: auto-refund mode). Auto mode:
 immediate full refund, patient notified via SMS + WhatsApp with rebook link, Agency Admin
 and Platform Admin alerted. Manual-review mode: 24-hour SLA for Platform Admin decision.
 Both modes: no-show event is audit-logged. Patient no-show: appointment marked
 no-show-by-patient; fee non-refundable; psychiatrist prompted to add notes or skip.
+A two-nudge re-engagement sequence is sent via WhatsApp: Nudge 1 (24h after no-show —
+configurable) re-engagement message with rebook link; Nudge 2 (7 days after no-show —
+configurable) second re-engagement message, only if no new confirmed booking exists at
+send time. Both nudges respect the daily notification cap. No further nudges after Nudge 2.
+Both nudge events are audit-logged. Nudge timings configurable in PlatformConfiguration.
 **v1**: Yes
 
 ---
@@ -218,10 +243,15 @@ session end: psychiatrist notified, prompted to enter manually, failure audit-lo
 Psychiatrists can also add recommendations manually. All approved recommendations appended
 to patient's permanent record, timestamped and attributed. Raw transcripts retained 7 years,
 anonymised (not deleted) when deletion job runs. CareRecommendation captures all mandatory
-MHCA 2017 Form B-1 fields (GAP-034 resolved): presenting complaints, clinical observations,
-treatment type, consent status, identity verification, investigations ordered, MSE, Subjective
-SOAP (Follow-Up/Urgent Review), advance directive reference, and Form B-1 declaration checkbox
-required before any session record can be approved.
+MHCA 2017 Form B-1 fields: presenting complaints, clinical observations, treatment type,
+treatment consent checkbox ("The patient has given verbal consent to the treatment discussed
+in this session" — satisfies MHCA 2017 per-session consent documentation requirement),
+identity verification checkbox (audit-logged), investigations ordered, MSE (distinct free-text
+area), Subjective SOAP (Follow-Up/Urgent Review only), advance directive reference, and Form
+B-1 declaration checkbox required before approval. After a session note is approved, the
+platform immediately presents the psychiatrist with a mandatory prompt: "Issue Prescription"
+or "No prescription needed" — this prompt cannot be dismissed; it records the prescription
+decision for the session.
 **v1**: Yes
 
 ### REQ-e-prescription
@@ -232,7 +262,11 @@ clinic) and PatientProfile (name, age, address, ID verification record). Generic
 stored and displayed in CAPITAL LETTERS. Psychiatrist confirmation acts as digital signature.
 Prescription PDF downloadable from patient's appointment history and sent via WhatsApp if
 enabled. Retained 7 years. Amendments allowed within 24 hours; original retained in audit
-history. Prescription is optional per session.
+history. Prescription is optional per session. Upon prescription finalisation, a prompt is
+shown to the patient the next time they view their profile: "Would you like to set up a daily
+reminder for [DRUG NAME]?" — one prompt per newly prescribed medication; patient can set a
+reminder time or dismiss. This prompt surfaces the FR-021b medication reminder opt-in
+without requiring the patient to navigate to settings manually.
 **v1**: Yes
 
 ### REQ-list-c-drug-block
@@ -248,6 +282,18 @@ restriction. Blocked attempts audit-logged. List C maintained in PlatformConfigu
 **Description**: Patient portal shows complete care history — all past sessions and
 recommendations in a timeline view. Zoom join link prominently displayed for each upcoming
 confirmed appointment.
+**v1**: Yes
+
+### REQ-pre-session-digest
+**Source**: FR-016a
+**Description**: When a psychiatrist opens a patient's profile in the psychiatrist portal,
+a collapsible "Pre-Session Digest" panel is displayed at the top of the patient view. The
+panel contains: last session date and key care recommendations from that session, any
+intake questionnaire changes the patient has made since the last session (flagged with
+change date), currently active medications from the latest finalised prescription, and
+follow-up status (whether the patient has booked a follow-up as recommended). The panel
+is collapsed by default on first open; the psychiatrist can expand it. It is only shown
+when the patient has at least one prior approved session on the platform. Read-only.
 **v1**: Yes
 
 ---
@@ -296,11 +342,50 @@ booking with any psychiatrist at the time the nudge is scheduled to send.
 
 ### REQ-medication-reminders
 **Source**: FR-021b
-**Description**: Opt-in daily medication reminder per active prescription. Patient sets
-preferred reminder time; platform sends a daily WhatsApp message listing active
-prescriptions at that time. Reminders are deactivated automatically when a prescription
-expires or is superseded. Patient can disable reminders for individual prescriptions from
-their profile.
+**Description**: Per-medication opt-in daily reminder. Upon prescription finalisation,
+each medication appears in the patient's "My Medications" profile section. For each
+medication the patient may set a daily reminder time. If set, the platform sends a daily
+WhatsApp reminder at that time using a WhatsApp Business API button template. The message
+includes the generic drug name (CAPITAL LETTERS), dosage, frequency, and prescribing
+psychiatrist's name, plus a single quick-reply button: "Mark as taken". Patient tap of
+"Mark as taken" records an adherence confirmation event (medication ID, patient ID,
+timestamp). Non-response = unconfirmed — not counted as non-adherent. Adherence
+confirmation events are the data source for the FR-017a medication adherence streak.
+Reminders stop automatically on the final day of the prescription duration. Patient can
+update or cancel reminder settings at any time from their profile. Reminders respect the
+daily Tier 3 cap and the global WhatsApp toggle. The WhatsApp button template must be
+Meta/WhatsApp-approved before launch (CONSTRAINT-034).
+**v1**: Yes
+
+### REQ-patient-progress-dashboard
+**Source**: FR-017a
+**Description**: The patient dashboard includes a "Your Progress" view — a plain-language
+longitudinal summary of the patient's care journey. No clinical jargon, no automated
+diagnosis, no AI-generated assessments. Four components: (1) Symptom trajectory — per-session
+indicator (Improved / Stable / Worsened) sourced from approved session notes, presented as a
+simple visual timeline; (2) Medication adherence streak — consecutive days on which the
+patient tapped "Mark as taken" on at least one medication reminder (FR-021b adherence
+confirmation events); days with no active reminder excluded from streak; (3) Sessions
+completed counter — total number of approved sessions; (4) Recommended next session —
+date from the most recent approved session note, displayed as "Dr. [Name] recommends
+checking in around [date]" with a direct "Book now" link. Not shown until the patient has
+at least one approved session. No population benchmarking, no automated prognosis.
+**v1**: Yes
+
+### REQ-medication-initiation-safety-net
+**Source**: FR-048
+**Description**: When a prescription is finalised, the platform compares its medications
+against all prior approved prescriptions for the same patient. Medications not present in
+any prior prescription are classified as "new initiations." For each new initiation, two
+triggers fire: (a) Patient WhatsApp nudge 7 days after prescription finalisation — "You've
+been on [DRUG NAME] for a week. How are you feeling? Dr. [Name] (MCI Reg: [number])
+recommended a check-in around now — [booking link]." Suppressed if patient already has a
+confirmed upcoming booking at send time. (b) Psychiatrist dashboard notification from day 7
+until patient books follow-up or 30 days elapse — "Medication initiation review due:
+[Patient first name] — [DRUG NAME] initiated [date]. [Book link]." Drug comparison is
+case-insensitive and normalised. Both trigger events are audit-logged. No trigger fired for
+medications already in any prior prescription. Patient nudge delay (default 7 days) and
+psychiatrist notification expiry (default 30 days) are configurable in PlatformConfiguration.
 **v1**: Yes
 
 ---
@@ -329,24 +414,31 @@ be confirmed with a chartered accountant before implementation (CONSTRAINT-024).
 **Description**: Centralised Data Lifecycle Service using a typed job queue. Three types:
 On-Demand (patient-initiated, 72h SLA, single nudge at 48h inactivity if WhatsApp present),
 Abandoned Account Cleanup (30-day no-login + incomplete intake, 24h SLA, 48h nudge first),
-Data Expiry (daily scan, last activity >7 years, 24h SLA). Two-phase pipeline: Phase 1 —
-PII erasure (name, mobile, WhatsApp, email, payment details, device tokens, raw identifiers
-in logs); Phase 2 — Clinical Record Anonymisation (patient identifiers replaced with
-pseudonymous ID; records retained 7 years). Every job produces a PII-free audit entry
-retained permanently. Job queue status (pending, processing, completed, SLA-breached by
-type) exposed to Platform Admins; no PII visible.
+Data Expiry (daily scan, last activity >7 years, 24h SLA). When a patient initiates an
+on-demand deletion from their profile settings, before the deletion request is confirmed
+the platform displays a "Download your records first" prompt with a one-tap trigger for the
+FR-036 data export — so the patient can retrieve their data before it is deleted. The patient
+can then confirm deletion or cancel. Two-phase pipeline: Phase 1 — PII erasure (name,
+mobile, WhatsApp, email, payment details, device tokens, raw identifiers in logs); Phase 2
+— Clinical Record Anonymisation (patient identifiers replaced with pseudonymous ID; records
+retained 7 years). Every job produces a PII-free audit entry retained permanently. Job queue
+status (pending, processing, completed, SLA-breached by type) exposed to Platform Admins;
+no PII visible.
 **v1**: Yes
 
 ### REQ-data-export
 **Source**: FR-036
-**Description**: Patient self-service data export from profile settings (DPDPA 2023). Async
-export job enqueued; patient receives immediate on-screen acknowledgement; secure
-time-limited download link delivered via WhatsApp (if enabled) and SMS within 72 hours.
-Export includes: intake responses, care recommendations, appointment history, all issued
-prescription PDFs, notification preferences, and patient's own submitted SessionFeedback
-records. Raw session transcripts excluded. Download link expires after 48 hours. Export
-jobs visible in Platform Admin dashboard. Prescription PDFs included to satisfy both DPDPA
-2023 data portability rights and MHCA 2017 Section 25 Form A clinical records access rights.
+**Description**: Patient self-service data export from profile settings satisfying both DPDPA
+2023 data portability rights and MHCA 2017 Section 25 Form A patient records access rights
+in a single unified flow. Async export job enqueued; patient receives immediate on-screen
+acknowledgement; secure time-limited download link delivered via WhatsApp (if enabled) and
+SMS within 72 hours. Export includes: intake questionnaire responses, all approved session
+notes / care recommendations (all psychiatrists), appointment history, notification
+preferences, and the patient's own submitted SessionFeedback records. Raw Zoom transcripts
+are excluded (intermediate artifact, not formal clinical record). Prescription PDFs are
+excluded — prescriptions are formal clinical documents (not patient-authored data); patients
+access them individually as downloads from their appointment history page (FR-043). Download
+link expires after 48 hours. Export jobs are visible in the Platform Admin deletion dashboard.
 **v1**: Yes
 
 ---
@@ -362,8 +454,12 @@ thresholds, session timeouts, slot hold duration, Zoom transcript wait window, r
 job interval, abandoned account thresholds, retention periods, password policy, activation
 link expiry, appointment reminder intervals, daily Tier 3 cap, rating eligibility rules,
 matching weights, percentile band labels, match result list size, score thresholds, session
-type durations, slot publication horizon, no-show refund mode, List C drug list, and all
-other configurable values throughout the spec.
+type durations, slot publication horizon, no-show refund mode, List C drug list,
+patient no-show re-engagement nudge 1 delay (default: 24 hours after no-show),
+patient no-show re-engagement nudge 2 delay (default: 7 days after no-show),
+medication initiation patient nudge delay (default: 7 days after prescription finalisation),
+medication initiation psychiatrist notification expiry (default: 30 days if no follow-up
+booked), and all other configurable values throughout the spec.
 **v1**: Yes
 
 ---
@@ -373,12 +469,16 @@ other configurable values throughout the spec.
 ### REQ-platform-admin-portal
 **Source**: FR-033, FR-034
 **Description**: Platform Admin portal for internal ops staff only. Capabilities: deletion
-job dashboard (no PII), payment reconciliation flags, Zoom transcript failure logs,
-WhatsApp and SMS delivery failure logs, manual Razorpay refunds, account deactivation,
-TOTP reset (audit-logged), PlatformAdmin and first AgencyAdmin account creation, rating
-and matching settings panel (eligibility thresholds, percentile band labels, matching
-weights — immediate effect, audit-logged). Zero access to patient clinical data under any
-circumstance.
+job dashboard (no PII; includes patient data export job statuses — pending, processing,
+completed, enqueue timestamp, completion timestamp; no patient PII visible), payment
+reconciliation flags, Zoom transcript failure logs, WhatsApp and SMS delivery failure logs,
+manual Razorpay refunds, account deactivation, TOTP reset (audit-logged), PlatformAdmin
+and first AgencyAdmin account creation, rating and matching settings panel (eligibility
+thresholds, percentile band labels, matching weights — immediate effect, audit-logged), and
+a unified alert triage panel at the top of the Operations Dashboard — surfaces no-show
+decisions pending action, patient deletion SLA warnings, and failed refunds requiring
+manual intervention, sorted by urgency with SLA countdown per item. Zero access to
+patient clinical data under any circumstance.
 **v1**: Yes
 
 ### REQ-agency-management
@@ -450,10 +550,13 @@ pool is platform-wide across all active agencies.
 | REQ-e-prescription | Phase 4 | Pending |
 | REQ-list-c-drug-block | Phase 4 | Pending |
 | REQ-patient-care-history | Phase 4 | Pending |
-| REQ-post-session-feedback | Phase 4 | Pending |
+| REQ-pre-session-digest | Phase 4 | Pending |
+| REQ-post-session-feedback | Phase 8 | Pending |
 | REQ-personalised-notifications | Phase 5 | Pending |
 | REQ-follow-up-nudge | Phase 5 | Pending |
 | REQ-medication-reminders | Phase 5 | Pending |
+| REQ-patient-progress-dashboard | Phase 5 | Pending |
+| REQ-medication-initiation-safety-net | Phase 5 | Pending |
 | REQ-gst-invoice | Phase 6 | Pending |
 | REQ-data-lifecycle | Phase 6 | Pending |
 | REQ-data-export | Phase 6 | Pending |

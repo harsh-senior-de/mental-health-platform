@@ -6,8 +6,15 @@ Source: specs/001-patient-psychiatrist-match/spec.md (SPEC, high confidence)
        specs/001-patient-psychiatrist-match/actor-flows.md (SPEC, high confidence)
 Feature: 001-patient-psychiatrist-match
 Generated: 2026-05-03
-Last updated: 2026-05-04 (merge run — 52 gaps resolved; 7 new requirements added;
-REQ-availability-management and REQ-explicit-consent updated; REQ-data-export expanded)
+Last updated: 2026-05-05 (merge run — Session 16 changes applied:
+  FR-036 REVERSAL: prescriptions now EXCLUDED from export (auto-resolved, newer SPEC wins);
+  FR-017a NEW: patient "Your Progress" dashboard;
+  FR-048 NEW: medication initiation safety net;
+  FR-021b UPDATED: button template + adherence confirmation events;
+  FR-007 UPDATED: session-type fee on match cards, percentile rank on "Previously seen";
+  FR-015b UPDATED: consent status field replaced with explicit treatment consent checkbox;
+  FR-033 UPDATED: admin dashboard now shows export jobs;
+  PlatformConfiguration NEW PARAMS added to REQ-platform-configuration-store)
 
 ---
 
@@ -259,23 +266,35 @@ configurable algorithm factoring in symptom type, severity, patient preferences 
 gender), psychiatrist availability, and rating percentile. The matching pool is
 platform-wide across all agencies. Ineligible psychiatrists are excluded. All factor weights
 are stored in PlatformConfiguration. The booking screen shows two sections: "Previously seen"
-(all prior bookings, sorted by most recent, one-tap to slot selection) and "Find new match"
-(full matching algorithm, up to 5 ranked results with name, photo, specialisation, languages,
-fee for the applicable session type, and earliest available slot). The engine always returns
-results — never a dead-end screen. When all scores fall below the configurable threshold,
-results are labelled "closest available". When no psychiatrist has availability within 7 days,
-the next available slot date is surfaced. Slot conflicts are prevented by idempotent booking.
+(all prior bookings, sorted by most recent, one-tap to slot selection — showing name, photo,
+specialisation, percentile rank, the correct session-type fee for a returning patient
+[Follow-Up fee], and earliest available slot) and "Find new match" (full matching algorithm,
+up to 5 ranked results with name, photo, specialisation, languages, earliest available slot,
+and the session fee that applies to this patient for this psychiatrist: Initial Assessment
+fee for a patient who has never booked that psychiatrist before; Follow-Up fee for a patient
+who has at least one prior completed session with that psychiatrist). The fee shown on the
+card must be the exact fee charged at checkout — no adjustment, no surprise. The engine
+always returns results — never a dead-end screen. When all scores fall below the configurable
+threshold, results are labelled "closest available". When no psychiatrist has availability
+within 7 days, the next available slot date is surfaced. Slot conflicts are prevented by
+idempotent booking.
 acceptance criteria:
 - Matching pool includes psychiatrists from all active agencies.
 - Ineligible psychiatrists (per FR-039) are excluded from results.
-- "Previously seen" section is shown for patients with prior bookings.
-- "Find new match" is always visible regardless of prior bookings.
+- "Previously seen" section is shown for patients with prior bookings; each card shows
+  percentile rank and Follow-Up fee (correct session-type fee for returning patients).
+- "Find new match" is always visible regardless of prior bookings; each card shows the
+  correct session-type fee: Initial Assessment fee for patients with no prior completed
+  session with that psychiatrist; Follow-Up fee for patients with at least one prior
+  completed session with that psychiatrist.
 - No "no results" dead-end screen is ever shown; "closest available" label is used when
   scores fall below threshold.
 - No double-booking of a psychiatrist for the same time slot is possible.
 - All matching weights are stored in PlatformConfiguration (no hardcoded weights).
-- The fee shown on each match card is the correct fee for the session type being booked
-  (derived from the three-fee model on PsychiatristProfile per FR-023a).
+- The fee shown on each match card is the exact fee charged at checkout.
+updated: FR-007 updated — "Previously seen" cards now show percentile rank and correct
+session-type fee; "Find new match" cards use session-type-aware fee logic per competitive-edge
+Idea 9 (INCLUDED IN SPEC status in competitive-edge.md)
 
 ---
 
@@ -426,7 +445,9 @@ prompted to add session notes or skip (FR-015, FR-015b apply unchanged). A two-n
 re-engagement sequence is sent via WhatsApp: Nudge 1 (24h after no-show): re-engagement
 message with rebook link. Nudge 2 (7 days after no-show, only if no new confirmed booking
 by then): second re-engagement message. Both nudges respect the daily notification cap.
-No further nudges after Nudge 2. Both nudge events are audit-logged.
+No further nudges after Nudge 2. Both nudge events are audit-logged. Nudge timings
+configurable in PlatformConfiguration (patient no-show nudge 1 delay default: 24 hours;
+nudge 2 delay default: 7 days).
 acceptance criteria:
 - Psychiatrist no-show is detected when psychiatrist is absent from Zoom participant list
   at meeting end.
@@ -484,11 +505,13 @@ anything is written to the patient's care record. No automated update without ps
 approval.
 The session notes form (FR-015b) is the platform's MHCA 2017 Form B-1 equivalent. Required
 fields (must complete before approving): presenting complaints summary, clinical observations /
-progress notes, treatment type, consent status confirmation, and identity verification
-checkbox ("I have verbally confirmed this patient's name and date of birth at the start of
-this session" — audit-logged). Optional fields: history summary, techniques used, capacity
-assessment notes, risk/benefit discussion notes, investigations ordered (free-text), and
-Mental Status Examination (MSE) — a single free-text area distinct from clinical observations.
+progress notes, treatment type, a treatment consent checkbox ("The patient has given verbal
+consent to the treatment discussed in this session" — satisfying MHCA 2017 per-session
+consent documentation requirement), and an identity verification checkbox ("I have verbally
+confirmed this patient's name and date of birth at the start of this session" — audit-logged).
+Optional fields: history summary, techniques used, capacity assessment notes, risk/benefit
+discussion notes, investigations ordered (free-text), and Mental Status Examination (MSE) —
+a single free-text area distinct from clinical observations.
 For Follow-Up and Urgent Review sessions only, an additional Subjective (Patient Self-Report)
 section collects: medication adherence, side effects, symptom trajectory, sleep quality,
 appetite, significant life events (all optional). Pre-populated read-only fields: advance
@@ -504,8 +527,10 @@ acceptance criteria:
 - No transcript-derived information is written to the patient's care record without
   psychiatrist explicit approval.
 - Required Form B-1 fields (presenting complaints, clinical observations, treatment type,
-  consent status, identity verification checkbox) must all be completed before approval is
-  possible.
+  treatment consent checkbox, identity verification checkbox) must all be completed before
+  approval is possible.
+- Treatment consent checkbox wording: "The patient has given verbal consent to the treatment
+  discussed in this session."
 - Identity verification checkbox completion is audit-logged with timestamp and session
   reference.
 - MSE free-text field is distinct from clinical observations.
@@ -517,6 +542,9 @@ acceptance criteria:
 - Raw transcripts are retained 7 years and undergo anonymisation (not erasure) when a
   deletion job runs.
 - All approved recommendations are appended with timestamp and psychiatrist attribution.
+updated: FR-015b consent status field replaced with explicit treatment consent checkbox per
+Session 16 Q3 clarification — satisfies MHCA 2017 per-session consent documentation
+requirement
 gaps resolved: GAP-034 (Form B-1 all mandatory fields now in FR-015b), GAP-039 (advance
 directive + nominated rep fields added to PatientProfile and surfaced read-only in session
 notes), GAP-044 (MSE free-text field added as distinct labeled area), GAP-046 (Subjective
@@ -537,9 +565,10 @@ PsychiatristProfile (name, qualifications, MCI registration number, clinic/affil
 PatientProfile (name, age, address, ID verification record — populated from FR-001k). The
 MCI registration number appears in the WhatsApp prescription delivery message. Psychiatrist
 confirms the prescription as the digital signature. Upon finalisation: Prescription record
-linked to Appointment is stored; PDF generated and available for patient download; PDF link
-sent via WhatsApp if enabled; prescription retained 7 years. Prescription is optional per
-session. Psychiatrists may amend within 24 hours; original version retained in audit history.
+linked to Appointment is stored; PDF generated and available for patient download from their
+appointment history page; PDF link sent via WhatsApp if enabled; prescription retained 7 years.
+Prescription is optional per session. Psychiatrists may amend within 24 hours; original version
+retained in audit history.
 Upon prescription finalisation, if the session notes form "Recommended next session" field
 is blank, the platform auto-populates it with "2 weeks" with an inline note about medication
 initiation review. Psychiatrist can change or clear it.
@@ -604,6 +633,40 @@ acceptance criteria:
 
 ---
 
+### REQ-patient-progress-dashboard
+
+source: specs/001-patient-psychiatrist-match/spec.md (FR-017a)
+description: The patient dashboard includes a "Your Progress" view — a plain-language
+longitudinal summary of the patient's care journey with no clinical jargon, no automated
+diagnosis, and no AI-generated assessments. Displayed components:
+(1) Symptom trajectory over time — per-session indicator (Improved / Stable / Worsened)
+sourced from approved session notes (FR-015b), presented as a simple visual timeline;
+(2) Medication adherence streak — consecutive days on which the patient tapped "Mark as
+taken" on at least one medication reminder (sourced from FR-021b adherence confirmation
+events); days with no active reminder set are excluded from the streak calculation;
+(3) Sessions completed counter — total number of approved sessions with the platform;
+(4) Psychiatrist's recommended next session — recommended date from the most recent
+approved session note (FR-046), displayed as "Dr. [Name] recommends checking in around
+[date]" with a direct "Book now" link.
+All data is sourced exclusively from psychiatrist-approved records. The view is not shown
+until the patient has at least one approved session on record. No population norm comparisons.
+No estimated prognosis or recovery projections.
+acceptance criteria:
+- "Your Progress" view is not shown until the patient has at least one approved session.
+- Symptom trajectory sourced from approved session notes only; each entry shows
+  Improved / Stable / Worsened as set by the psychiatrist.
+- Medication adherence streak is derived from FR-021b "Mark as taken" confirmation events;
+  days with no active reminder excluded from streak.
+- Sessions completed counter reflects total approved sessions on the platform.
+- Recommended next session date shown with direct "Book now" link; sourced from most recent
+  approved session note.
+- No automated diagnosis, no population benchmarking, no AI-generated content.
+source note: FR-017a — NEW, added Session 16. Derived from competitive-edge.md Idea 2
+(INCLUDED IN SPEC). Data sources already exist in spec (FR-015b, FR-021b, FR-046,
+CareRecommendation entity).
+
+---
+
 ### REQ-follow-up-nudge
 
 source: specs/001-patient-psychiatrist-match/spec.md (FR-046)
@@ -635,20 +698,73 @@ source: specs/001-patient-psychiatrist-match/spec.md (FR-021b)
 description: Upon prescription finalisation, each medication in the prescription appears in
 the patient's "My Medications" profile section. For each medication, the patient may
 optionally set a daily reminder time. If a reminder time is set, the platform sends a Tier 3
-WhatsApp reminder daily at that time for the prescription duration, then stops automatically.
-If no reminder time is set, no reminder is sent for that medication. Patient can update or
-cancel reminder settings at any time from their profile. Reminders respect the daily Tier 3
-cap (FR-020) and the global WhatsApp toggle (FR-021). Reminder messages include the generic
-drug name (CAPITAL LETTERS), dosage, frequency, and prescribing psychiatrist's name.
+WhatsApp reminder daily at that time for the prescription duration using a WhatsApp Business
+API button template. The reminder message includes the generic drug name (CAPITAL LETTERS),
+dosage, frequency, and prescribing psychiatrist's name, plus a single quick-reply button:
+"Mark as taken". When the patient taps the button, the platform records an adherence
+confirmation event (medication ID, patient ID, timestamp). Non-response = unconfirmed (not
+counted as non-adherent). The adherence confirmation events are the data source for the
+medication adherence streak in FR-017a. Reminders stop automatically on the final day of
+the prescription duration. If no reminder time is set, no reminder is sent and no adherence
+tracking occurs for that medication. Patient can update or cancel reminder settings at any
+time from their profile. Reminders respect the daily Tier 3 cap (FR-020) and the global
+WhatsApp toggle (FR-021). The WhatsApp button template must be approved before launch
+(planning-phase task).
 acceptance criteria:
 - Medications from finalised prescriptions appear in "My Medications" in the patient's
   profile.
 - Medication reminders are only sent if the patient has explicitly set a reminder time
   for that medication (opt-in by time-setting, not opt-out).
+- Reminder message uses a WhatsApp Business API button template with a "Mark as taken"
+  quick-reply button.
+- Patient tap of "Mark as taken" records an adherence confirmation event (medication ID,
+  patient ID, timestamp).
+- Non-response is recorded as unconfirmed — not as non-adherent.
 - Reminders run for the prescription duration and stop automatically.
 - Patient can update or cancel reminder settings at any time.
 - Reminders respect the daily Tier 3 notification cap.
+- Adherence confirmation events are the data source for the FR-017a medication adherence
+  streak.
+updated: FR-021b updated Session 16 Q2 — WhatsApp button template with "Mark as taken"
+quick-reply added; adherence confirmation events added as data source for FR-017a streak
 gaps resolved: GAP-045 (medication reminder feature defined via FR-021b)
+
+---
+
+### REQ-medication-initiation-safety-net
+
+source: specs/001-patient-psychiatrist-match/spec.md (FR-048)
+description: When a prescription is finalised (FR-043), the platform compares medications in
+the new prescription against all prior approved prescriptions for the same patient. Any
+medication appearing in the new prescription not present in any prior prescription is
+classified as a "new initiation." For each new initiation, the platform triggers:
+(a) Patient WhatsApp nudge — sent 7 days after prescription finalisation date (subject to
+patient's notification preferences): "You've been on [DRUG NAME] for a week. How are you
+feeling? Dr. [Name] (MCI Reg: [number]) recommended a check-in around now — [booking link]."
+Suppressed if the patient already has a confirmed upcoming booking at the time of sending.
+(b) Psychiatrist dashboard notification — surfaced on the psychiatrist's dashboard from day
+7 after initiation until the patient books a follow-up or 30 days elapse: "Medication
+initiation review due: [Patient first name] — [DRUG NAME] initiated [date]. [Book link]."
+Drug name comparison is case-insensitive and normalised. A medication is considered "prior"
+if it appears in any finalised prescription for this patient, regardless of psychiatrist.
+Both trigger events are audit-logged (patient ID, prescription reference, drug name, trigger
+type, send timestamp). No trigger is fired for medications already present in a prior
+prescription. Patient nudge delay and psychiatrist notification expiry are configurable in
+PlatformConfiguration.
+acceptance criteria:
+- Platform identifies "new initiation" medications (not in any prior finalised prescription
+  for the patient) when a prescription is finalised.
+- Patient receives a WhatsApp nudge 7 days after prescription finalisation for each new
+  initiation drug; suppressed if patient already has a confirmed upcoming booking.
+- Patient nudge includes drug name, psychiatrist name, and MCI registration number.
+- Psychiatrist dashboard notification is surfaced from day 7 until patient books follow-up
+  or 30 days elapse after initiation.
+- Both trigger events are audit-logged.
+- No trigger is fired for medications already in a prior prescription.
+- Patient nudge delay (default: 7 days) and psychiatrist notification expiry (default:
+  30 days) are configurable in PlatformConfiguration.
+source note: FR-048 — NEW, added Session 16. Derived from competitive-edge.md Idea 3
+(INCLUDED IN SPEC).
 
 ---
 
@@ -808,23 +924,29 @@ description: Patient self-service records request from profile settings satisfie
 patient receives immediate on-screen acknowledgement; within 72 hours the platform delivers
 a secure time-limited download link via WhatsApp (if enabled) and SMS. The 72-hour delivery
 window satisfies the 72-hour DPDPA deadline and is faster than the 15-day MHCA 2017 Form A
-window. Export includes: intake questionnaire responses, all approved session notes, all
-issued prescription PDFs, appointment history, notification preferences, and the patient's
-own submitted SessionFeedback records. Raw session transcripts are excluded (intermediate
-artifact, not formal clinical record). Download link expires after 48 hours. Export jobs
-are visible in the Platform Admin deletion dashboard for audit purposes.
+window. Export includes: intake questionnaire responses, all approved session notes / care
+recommendations (all psychiatrists), appointment history, notification preferences, and the
+patient's own submitted SessionFeedback records. Raw Zoom transcripts are excluded
+(intermediate artifact, not formal clinical record). Prescription PDFs are excluded —
+prescriptions are formal clinical documents (not patient-authored data); patients access them
+individually as downloads from their appointment history page (FR-043). Download link expires
+after 48 hours. Export jobs are visible in the Platform Admin deletion dashboard for audit
+purposes.
 acceptance criteria:
 - Export package is delivered within 72 hours; satisfies both DPDPA 2023 and MHCA 2017
   Form A timelines.
-- Export includes approved session notes and all issued prescription PDFs.
+- Export includes all approved session notes / care recommendations.
 - Export includes patient-authored feedback (SessionFeedback records) per DPDPA 2023.
 - Raw session transcripts are excluded from patient export.
+- Prescription PDFs are excluded from the export package; patients access prescriptions
+  individually from appointment history page.
 - Download link expires after 48 hours.
 - Export jobs are visible in the Platform Admin dashboard.
-gaps resolved: GAP-041 (FR-036 unified to cover DPDPA + MHCA Form A; package expanded to
-include full clinical records including prescriptions)
-note: This update supersedes the prior CONSTRAINT-026 which excluded prescription PDFs from
-the export. The spec resolution includes them. See INFO entry in INGEST-CONFLICTS.md.
+updated: FR-036 REVERSAL — Session 16 Q1 reverses the GAP-041 inclusion of prescription PDFs.
+Prescriptions are now excluded. Patients access them from appointment history. The accepted
+session notes (CareRecommendation records) are the formal clinical record included in the
+export. This supersedes the prior Session 14 inclusion. Auto-resolved: newer SPEC wins.
+See INFO entry in INGEST-CONFLICTS.md.
 
 ---
 
@@ -844,13 +966,20 @@ matching algorithm factor weights, percentile band labels, match result list siz
 thresholds, session type durations (Initial Assessment 60 min / Follow-Up 30 min / Urgent
 Review 60 min), maximum slot publication horizon, no-show refund mode, no-show manual review
 SLA, List C prohibited drug list, List B drug reference list, GST invoice number prefix,
-follow-up nudge timing, crisis helpline numbers (iCall WhatsApp), psychiatrist rating
-visibility toggle.
+follow-up nudge send timing, crisis helpline numbers (iCall WhatsApp), psychiatrist rating
+visibility toggle, patient no-show re-engagement nudge 1 delay (default: 24 hours after
+no-show), patient no-show re-engagement nudge 2 delay (default: 7 days after no-show),
+medication initiation patient nudge delay (default: 7 days after prescription finalisation),
+medication initiation psychiatrist notification expiry (default: 30 days if no follow-up
+booked).
 acceptance criteria:
 - All listed values are stored in PlatformConfiguration and editable by Platform Admins
   via the admin dashboard.
 - Changes take effect immediately without redeployment.
 - All changes are audit-logged.
+updated: Four new PlatformConfiguration parameters added per Session 16 and FR-047/FR-048:
+patient no-show nudge 1 delay, nudge 2 delay, medication initiation patient nudge delay,
+medication initiation psychiatrist notification expiry.
 
 ---
 
@@ -868,7 +997,9 @@ accounts and first AgencyAdmin accounts; configure rating and matching settings 
 dedicated settings panel (eligibility thresholds, percentile band labels, matching factor
 weights — changes take effect immediately and are audit-logged); bulk-update session fees
 for all psychiatrists across all agencies platform-wide (FR-023a); manage PlatformConfiguration
-values. Platform Admins have zero access to patient clinical data — intake responses, session
+values; view patient data export jobs (FR-036) in the deletion dashboard — status (pending,
+processing, completed), enqueue timestamp, completion timestamp; no patient PII visible.
+Platform Admins have zero access to patient clinical data — intake responses, session
 transcripts, care recommendations, and session notes are not visible under any circumstance.
 acceptance criteria:
 - Platform Admin portal is inaccessible to all other roles.
@@ -876,6 +1007,10 @@ acceptance criteria:
 - TOTP resets are audit-logged per FR-001e.
 - Rating and matching configuration changes take effect immediately without redeployment.
 - Platform Admin can bulk-update fees platform-wide (FR-023a).
+- Patient data export job statuses are visible in the deletion dashboard with no patient
+  PII exposed.
+updated: FR-033 updated — Platform Admin deletion dashboard now includes a view of patient
+data export jobs (FR-036) — status, timestamps, no patient PII visible.
 
 ---
 
@@ -969,8 +1104,10 @@ acceptance criteria:
 | REQ-e-prescription | Phase 4 | Pending |
 | REQ-list-c-drug-block | Phase 4 | Pending |
 | REQ-patient-care-history | Phase 4 | Pending |
+| REQ-patient-progress-dashboard | Phase 5 | Pending |
 | REQ-follow-up-nudge | Phase 5 | Pending |
 | REQ-medication-reminders | Phase 5 | Pending |
+| REQ-medication-initiation-safety-net | Phase 5 | Pending |
 | REQ-personalised-notifications | Phase 5 | Pending |
 | REQ-gst-invoice | Phase 6 | Pending |
 | REQ-data-lifecycle | Phase 6 | Pending |

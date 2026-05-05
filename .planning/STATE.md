@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: context exhaustion at 77% (2026-05-04)
-last_updated: "2026-05-04T14:30:37.031Z"
-last_activity: 2026-05-04 — merge run: 7 docs ingested, 3 new requirements, 4 new constraints, all v1 gaps resolved
+stopped_at: context exhaustion at 76% (2026-05-05)
+last_updated: "2026-05-05T15:25:26.022Z"
+last_activity: 2026-05-05 — planning files merged; Session 16 + GAP-053–062 UX review applied; 62 gaps total (all resolved); 39 requirements; CONSTRAINT-032/033/034 added
 progress:
   percent: 0
 ---
@@ -24,7 +24,7 @@ See: .planning/PROJECT.md (updated 2026-05-03)
 Phase: 1 of 10 (Foundation)
 Plan: 0 of TBD in current phase
 Status: Ready to plan
-Last activity: 2026-05-04 — .planning/ bootstrap completed; ROADMAP.md and STATE.md initialised
+Last activity: 2026-05-05 — planning files merged; Session 16 + GAP-053–062 UX review applied; 62 gaps total (all resolved); 39 requirements; CONSTRAINT-032/033/034 added
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -55,7 +55,7 @@ Recent decisions affecting current work: None yet (no phases executed).
 
 ### Open Gaps
 
-All 52 v1 spec gaps resolved (Sessions 1–15). No open v1 gaps remain.
+All 62 v1 spec gaps resolved (Sessions 1–16 + GAP-053–062 UX review). No open v1 gaps remain.
 Deferred to v2: GAP-032 (treatment phase tracking), GAP-035 (caregiver consultation).
 
 ### Pending Todos
@@ -76,7 +76,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-04T14:30:37.026Z
-Stopped at: context exhaustion at 77% (2026-05-04)
+Last session: 2026-05-05T15:25:26.017Z
+Stopped at: context exhaustion at 76% (2026-05-05)
 Resume file: None
 Next action: `/gsd-plan-phase 1`

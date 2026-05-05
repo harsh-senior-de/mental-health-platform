@@ -76,10 +76,10 @@ Phases 2 through 5 and is the first active feature in planning.
 ### Phase 4: Session Delivery and Clinical Records
 **Goal**: Psychiatrists can conduct Zoom sessions, review transcript-generated draft recommendations, approve or write care notes, issue e-prescriptions (with List C blocked), and patients can view their complete care history
 **Depends on**: Phase 3
-**Requirements**: REQ-psychiatrist-data-access, REQ-session-transcript-and-care-recommendation, REQ-e-prescription, REQ-list-c-drug-block, REQ-patient-care-history
+**Requirements**: REQ-psychiatrist-data-access, REQ-session-transcript-and-care-recommendation, REQ-e-prescription, REQ-list-c-drug-block, REQ-patient-care-history, REQ-pre-session-digest
 **Success Criteria** (what must be TRUE):
-  1. A psychiatrist can open a patient record and view the complete intake summary and prior CareRecommendations within 10 seconds
-  2. After a session ends, a Zoom transcript webhook generates a structured draft CareRecommendation with all MHCA 2017 Form B-1 mandatory fields pre-populated; the psychiatrist completes the Form B-1 declaration checkbox before approval; no change reaches the patient record without explicit approval
+  1. A psychiatrist can open a patient record and view the complete intake summary and prior CareRecommendations within 10 seconds; a pre-session digest panel surfaces last session notes, intake changes, active meds, and follow-up status
+  2. After a session ends, a Zoom transcript webhook generates a structured draft CareRecommendation with all MHCA 2017 Form B-1 mandatory fields pre-populated including the treatment consent checkbox; the psychiatrist completes the Form B-1 declaration checkbox before approval; no change reaches the patient record without explicit approval; after approval the psychiatrist is immediately prompted to indicate "Issue Prescription" or "No prescription needed"
   3. Attempting to prescribe any List C drug produces an immediate hard block naming the specific drug and citing the legal restriction; no override path exists
   4. A completed prescription PDF is downloadable by the patient from their appointment history and sent via WhatsApp if enabled; the prescribing psychiatrist's MCI registration number appears on every prescription
   5. A patient can view their full care history — all sessions, approved recommendations, and prescription records — in a chronological timeline from their portal
@@ -88,15 +88,17 @@ Phases 2 through 5 and is the first active feature in planning.
 **UI hint**: yes
 
 ### Phase 5: Notifications and Care Continuity
-**Goal**: Patients receive timely, personalised notifications across all three tiers — OTP/auth, booking reminders, and care reminders — delivered within ±5 minutes of their stated preferred time with ≥95% delivery success
+**Goal**: Patients receive timely, personalised notifications across all three tiers; the care continuity engine delivers follow-up nudges, medication reminders with adherence tracking, medication initiation safety nets, and a longitudinal progress dashboard
 **Depends on**: Phase 4
-**Requirements**: REQ-personalised-notifications, REQ-follow-up-nudge, REQ-medication-reminders
+**Requirements**: REQ-personalised-notifications, REQ-follow-up-nudge, REQ-medication-reminders, REQ-patient-progress-dashboard, REQ-medication-initiation-safety-net
 **Success Criteria** (what must be TRUE):
   1. Booking reminder notifications (48h, 2h, 15min before session) are delivered via SMS and WhatsApp (if enabled) within ±5 minutes of the target time for ≥95% of active patients
   2. Tier 3 care reminders (medication, activity nudge, follow-up prompt) are delivered at each patient's individually configured preferred time, not a platform-wide schedule
   3. When a patient updates their notification preferences, all pending Tier 3 reminders are cancelled and rescheduled immediately; the daily cap is respected
   4. WhatsApp delivery failures are audit-logged; no SMS fallback occurs for Tier 3; SMS fallback does occur for Tier 2 if WhatsApp fails
   5. A patient can opt out of any notification category from their profile; opted-out categories stop immediately with no pending deliveries
+  6. A patient with at least one approved session sees a "Your Progress" dashboard — symptom trajectory, medication adherence streak, sessions completed, and recommended next session — sourced exclusively from psychiatrist-approved records with no automated clinical inference
+  7. When a prescription containing a new-initiation drug is finalised, a patient WhatsApp nudge fires 7 days later (suppressed if patient already has a confirmed booking) and a psychiatrist dashboard alert is shown from day 7 until the patient books a follow-up or 30 days elapse
 **Plans**: TBD
 
 ### Phase 6: Billing and Data Governance
@@ -105,7 +107,7 @@ Phases 2 through 5 and is the first active feature in planning.
 **Requirements**: REQ-gst-invoice, REQ-data-lifecycle, REQ-data-export
 **Success Criteria** (what must be TRUE):
   1. A GST-compliant tax invoice is generated for every confirmed paid booking and delivered to the patient (or available in booking history) within 24 hours of payment confirmation
-  2. A patient who requests data export receives a secure time-limited download link (valid 48 hours) via WhatsApp and SMS within 72 hours; the export contains intake responses, care recommendations, appointment history, all issued prescription PDFs, and notification preferences — raw session transcripts are excluded
+  2. A patient who requests data export receives a secure time-limited download link (valid 48 hours) via WhatsApp and SMS within 72 hours; the export contains intake responses, approved care recommendations, appointment history, and notification preferences — raw session transcripts and prescription PDFs are excluded (prescriptions are accessed individually from appointment history)
   3. A patient account deletion request is fully processed (PII erased, clinical records pseudonymised) within 72 hours; no patient PII is accessible after completion
   4. The Data Lifecycle Service processes abandoned account cleanup (30-day no-login + incomplete intake) and data expiry (7-year threshold) automatically; job status is visible to Platform Admins with no PII exposed
   5. Platform Admins can view the deletion job dashboard, filter by job type and SLA status, and see no PII in any field
@@ -188,7 +190,7 @@ Phases execute in numeric order: 1 → 2 → 3 → ... → 10
 
 ## Open Gap Annotations
 
-All v1 gaps resolved in spec (Sessions 1–15, all 52 gaps closed). The following items
+All v1 gaps resolved in spec (Sessions 1–16 + GAP-053–062 UX review, all 62 gaps closed). The following items
 are deferred to v2:
 
 | Gap | Target | Summary |
@@ -200,7 +202,7 @@ are deferred to v2:
 
 ## Coverage Map
 
-All 36 v1 requirements mapped to exactly one phase. No orphaned requirements.
+All 39 v1 requirements mapped to exactly one phase. No orphaned requirements.
 
 | Requirement | Phase |
 |-------------|-------|
@@ -231,9 +233,12 @@ All 36 v1 requirements mapped to exactly one phase. No orphaned requirements.
 | REQ-e-prescription | Phase 4 |
 | REQ-list-c-drug-block | Phase 4 |
 | REQ-patient-care-history | Phase 4 |
+| REQ-pre-session-digest | Phase 4 |
 | REQ-personalised-notifications | Phase 5 |
 | REQ-follow-up-nudge | Phase 5 |
 | REQ-medication-reminders | Phase 5 |
+| REQ-patient-progress-dashboard | Phase 5 |
+| REQ-medication-initiation-safety-net | Phase 5 |
 | REQ-gst-invoice | Phase 6 |
 | REQ-data-lifecycle | Phase 6 |
 | REQ-data-export | Phase 6 |

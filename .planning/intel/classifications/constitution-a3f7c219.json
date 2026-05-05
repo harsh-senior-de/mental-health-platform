@@ -1,0 +1,32 @@
+{
+  "source_path": "/home/harsh/workspace/mental-health-platform/.specify/memory/constitution.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Mental Health Platform Constitution — India",
+  "summary": "Ratified v1.1.0 constitution establishing non-negotiable principles, architecture rules, forbidden practices, and governance for the India mental health platform.",
+  "scope": [
+    "privacy",
+    "clinical safety",
+    "accessibility",
+    "test-driven development",
+    "observability",
+    "architecture",
+    "database",
+    "security",
+    "matching engine",
+    "notification system",
+    "development workflow",
+    "governance"
+  ],
+  "cross_refs": [
+    "CLAUDE.md",
+    ".specify/templates/plan-template.md",
+    ".specify/templates/spec-template.md",
+    ".specify/templates/tasks-template.md",
+    ".specify/templates/commands/"
+  ],
+  "locked": true,
+  "precedence": null,
+  "notes": ""
+}

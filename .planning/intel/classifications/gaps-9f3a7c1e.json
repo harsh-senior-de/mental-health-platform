@@ -1,0 +1,29 @@
+{
+  "source_path": "/home/harsh/workspace/mental-health-platform/specs/001-patient-psychiatrist-match/checklists/gaps.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Spec Gaps Tracker: 001-patient-psychiatrist-match",
+  "summary": "Tracks all 62 identified specification gaps for the patient-psychiatrist matching feature, recording resolution status, session references, and affected FRs per gap.",
+  "scope": [
+    "patient-psychiatrist-match",
+    "spec-gaps",
+    "clarification-sessions",
+    "functional-requirements",
+    "PlatformConfiguration",
+    "PatientProfile",
+    "PsychiatristProfile",
+    "Appointment",
+    "CareRecommendation",
+    "Prescription",
+    "Payment",
+    "NotificationPreference",
+    "Agency"
+  ],
+  "cross_refs": [
+    "specs/001-patient-psychiatrist-match/spec.md"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

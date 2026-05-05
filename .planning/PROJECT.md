@@ -192,11 +192,14 @@ or after any regulatory change affecting compliance obligations.
 | CONSTRAINT-023 | schema | Patient entity primary key must be UUID (not mobile number) |
 | CONSTRAINT-024 | nfr | GSTIN ownership decision requires CA confirmation before invoicing impl |
 | CONSTRAINT-025 | nfr | Web application only; no mobile app in v1 |
-| CONSTRAINT-026 | nfr | Prescription PDFs included in patient data export (DPDPA 2023 + MHCA 2017 Form A) |
+| CONSTRAINT-026 | nfr | Prescription PDFs excluded from patient data export — prescriptions are formal clinical documents; patients access them individually from appointment history (FR-043); approved session notes are the clinical record included in the export |
 | CONSTRAINT-028 | schema | Three session-type fees per psychiatrist (Initial Assessment, Follow-Up, Urgent Review); locked into Payment record at booking; bulk update supported |
-| CONSTRAINT-029 | schema | CareRecommendation captures all MHCA 2017 Form B-1 mandatory fields; Form B-1 declaration checkbox required before approval |
+| CONSTRAINT-029 | schema | CareRecommendation captures all MHCA 2017 Form B-1 mandatory fields including explicit treatment consent checkbox ("The patient has given verbal consent to the treatment discussed in this session"); Form B-1 declaration checkbox required before approval |
 | CONSTRAINT-030 | protocol | Consent is a hard gate; patient decline triggers immediate deletion of partial account (mobile + OTP record only) |
 | CONSTRAINT-031 | schema | GST invoice number format: [PREFIX]/[FY]/[SEQUENCE]; auto-incrementing, gapless, resets April 1; immutable once issued |
+| CONSTRAINT-032 | protocol | Medication initiation safety net (FR-048): prescription comparison on finalisation identifies new-initiation drugs (not in any prior prescription for patient); triggers patient WhatsApp nudge (configurable delay, default 7 days) and psychiatrist dashboard notification (day 7 until follow-up booked or 30 days expire); both events audit-logged; no trigger for medications already in a prior prescription |
+| CONSTRAINT-033 | nfr | Patient progress dashboard (FR-017a): all data sourced exclusively from psychiatrist-approved records (session notes, adherence confirmation events, CareRecommendation.next_follow_up_date); no automated clinical inference; not shown until patient has ≥1 approved session |
+| CONSTRAINT-034 | protocol | WhatsApp Business API "Mark as taken" button template (FR-021b) must be approved by Meta/WhatsApp before platform launch; template approval is a pre-launch planning-phase task |
 
 ---
 

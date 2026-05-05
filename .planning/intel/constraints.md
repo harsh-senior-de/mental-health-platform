@@ -5,9 +5,14 @@ Mode: merge
 Sources: specs/001-patient-psychiatrist-match/spec.md (SPEC), .specify/memory/constitution.md (ADR LOCKED)
          specs/001-patient-psychiatrist-match/actor-flows.md (SPEC)
 Generated: 2026-05-03
-Last updated: 2026-05-04 (merge run — open-gap flags removed for GAP-026, GAP-027, GAP-032,
-GAP-033, GAP-034; CONSTRAINT-026 updated to reflect FR-036 expansion; new constraints added
-for profile setup, List B panel, MHCA Form A, and crisis helpline display)
+Last updated: 2026-05-05 (merge run — Session 16 changes applied:
+  CONSTRAINT-019: export scope updated — prescriptions EXCLUDED (reversal of prior inclusion);
+  CONSTRAINT-026: updated to reflect FR-036 reversal — prescriptions excluded from export;
+  CONSTRAINT-029: treatment consent checkbox wording updated per FR-015b Session 16 Q3;
+  CONSTRAINT-032: NEW — medication initiation safety net trigger rules (FR-048);
+  CONSTRAINT-033: NEW — patient progress dashboard data sourcing constraints (FR-017a);
+  CONSTRAINT-034: NEW — WhatsApp button template approval required before launch (FR-021b);
+  PlatformConfiguration params updated in CONSTRAINT-012 reference list)
 
 ---
 
@@ -76,8 +81,9 @@ all services, all log levels, and all environments including development and sta
 source: .specify/memory/constitution.md
 type: nfr
 Audit logs for all critical actions (login, booking, prescription updates, PHI access,
-TOTP resets, deletion jobs, identity verification checkbox completions, blocked List C
-drug attempts, PlatformConfiguration changes) must be immutable and retained for at least
+TOTP resets, deletion jobs, identity verification checkbox completions, treatment consent
+checkbox completions, blocked List C drug attempts, PlatformConfiguration changes,
+medication initiation safety net trigger events) must be immutable and retained for at least
 7 years. Audit logs must be stored separately from application data.
 
 ---
@@ -123,6 +129,10 @@ psychiatrists may make clinical decisions on the platform. This is an absolute p
 with no exceptions. The draft recommendation generated from the Zoom transcript (FR-015) is
 an automated suggestion only — it must never be applied to the patient record without
 explicit psychiatrist review and approval (FR-015a).
+Note: The FR-017a "Your Progress" dashboard is explicitly permitted — it is a structured
+display of psychiatrist-approved data (symptom trajectory sourced from approved session
+notes, medication adherence sourced from patient-confirmed events). It makes no clinical
+inference, provides no diagnosis, and contains no AI-generated assessments.
 
 ---
 
@@ -133,7 +143,9 @@ type: nfr
 All business rules, thresholds, and mappings must be configurable and data-driven. Hardcoded
 values in code are explicitly prohibited. All platform-wide configurable values must live in
 PlatformConfiguration and be editable by Platform Admins without a code change or deployment
-(FR-035).
+(FR-035). This includes: medication initiation patient nudge delay (default 7 days) and
+psychiatrist notification expiry (default 30 days), patient no-show nudge 1 and nudge 2
+delays — all added per FR-048 and FR-047 and stored in PlatformConfiguration.
 
 ---
 
@@ -210,7 +222,8 @@ number must appear on all prescriptions, websites, emails, and WhatsApp messages
 psychiatrists. PsychiatristProfile must store the MCI registration number. It must be
 auto-populated on all generated prescription PDFs and must appear in all Tier 2 WhatsApp
 messages that reference a specific psychiatrist, using the format "Dr. [Name] (MCI Reg:
-[number])."
+[number])." The MCI number must also appear in FR-048 medication initiation patient WhatsApp
+nudges, which reference the prescribing psychiatrist.
 
 ---
 
@@ -221,11 +234,17 @@ type: nfr
 Users must be able to export and delete their data at any time. On-demand deletion must be
 processed within 72 hours. Data export must be delivered within 72 hours via WhatsApp (if
 enabled) and SMS. Download links expire after 48 hours. The export package includes: intake
-responses, all approved session notes, all issued prescription PDFs, appointment history,
+responses, all approved session notes / care recommendations, appointment history,
 notification preferences, and the patient's own SessionFeedback records. Raw session
 transcripts are excluded from the export (intermediate artifact, not formal clinical record).
-Clinical records are anonymised (not deleted) and retained for 7 years from the session date.
+Prescription PDFs are excluded from the export — they are formal clinical documents (not
+patient-authored data); patients access them individually from their appointment history
+page. Clinical records (session notes) are anonymised (not deleted) and retained for 7
+years from the session date.
 The 72-hour delivery window satisfies both DPDPA 2023 and MHCA 2017 Form A (15-day) timelines.
+Note: This constraint supersedes the prior version which included prescription PDFs in the
+export package (Session 14 GAP-041 resolution). The Session 16 reversal excludes prescriptions.
+The auto-resolution of this change is recorded in INGEST-CONFLICTS.md.
 
 ---
 
@@ -295,18 +314,19 @@ web browser. Offline-first support and native mobile app are out of scope for v1
 
 ---
 
-## CONSTRAINT-026 — Data Export Includes Clinical Records; Raw Transcripts Excluded
+## CONSTRAINT-026 — Data Export Excludes Prescriptions and Raw Transcripts
 
-source: specs/001-patient-psychiatrist-match/spec.md (FR-036, FR-043, GAP-041 resolution)
+source: specs/001-patient-psychiatrist-match/spec.md (FR-036, Session 16 Q1 reversal)
 type: nfr
-The patient data export (FR-036) includes full clinical records: intake responses, all
-approved session notes, all issued prescription PDFs, appointment history, notification
-preferences, and the patient's own SessionFeedback records. Raw Zoom session transcripts are
-excluded — they are intermediate artifacts, not formal clinical records.
-Note: This constraint supersedes the prior version of CONSTRAINT-026 which excluded
-prescription PDFs from the export. The GAP-041 resolution (Session 14 Q6) unified the data
-export to cover DPDPA 2023 and MHCA 2017 Form A rights, which includes prescriptions.
-The auto-resolution of this change is recorded in INGEST-CONFLICTS.md.
+The patient data export (FR-036) includes: intake responses, all approved session notes /
+care recommendations, appointment history, notification preferences, and the patient's own
+SessionFeedback records. Raw Zoom session transcripts are excluded — they are intermediate
+artifacts, not formal clinical records. Prescription PDFs are excluded — they are formal
+clinical documents (not patient-authored data); patients access them individually as
+downloads from their appointment history page.
+Note: This constraint supersedes the prior version (from the GAP-041 Session 14 resolution)
+which included prescription PDFs in the export. The Session 16 reversal re-excludes them.
+The auto-resolution is recorded in INGEST-CONFLICTS.md.
 
 ---
 
@@ -339,18 +359,25 @@ gaps resolved: GAP-033 (three-tier pricing by session type)
 
 ## CONSTRAINT-029 — Form B-1 Compliance; CareRecommendation Extended
 
-source: specs/001-patient-psychiatrist-match/spec.md (FR-015b, GAP-034 resolution)
+source: specs/001-patient-psychiatrist-match/spec.md (FR-015b, GAP-034 resolution,
+Session 16 Q3 update)
 type: schema
 The CareRecommendation entity (session record) serves as the platform's MHCA 2017 Form B-1
 equivalent. It must capture all Form B-1 mandatory fields: presenting complaints summary,
-clinical observations / progress notes, treatment type, consent status, identity verification
-checkbox (audit-logged), and the optional fields: history summary, techniques used, capacity
-assessment notes, risk/benefit discussion notes, investigations ordered (free-text), Mental
-Status Examination (MSE free-text), Subjective SOAP fields for Follow-Up and Urgent Review
-(medication adherence, side effects, symptom trajectory, sleep quality, appetite, significant
-life events), pre-populated advance directive and nominated representative (from PatientProfile),
+clinical observations / progress notes, treatment type, a treatment consent checkbox with
+explicit wording "The patient has given verbal consent to the treatment discussed in this
+session" (satisfies MHCA 2017 per-session consent documentation requirement), an identity
+verification checkbox "I have verbally confirmed this patient's name and date of birth at
+the start of this session" (audit-logged, satisfies Telemedicine Practice Guidelines 2020),
+and the optional fields: history summary, techniques used, capacity assessment notes,
+risk/benefit discussion notes, investigations ordered (free-text), Mental Status Examination
+(MSE free-text), Subjective SOAP fields for Follow-Up and Urgent Review (medication
+adherence, side effects, symptom trajectory, sleep quality, appetite, significant life
+events), pre-populated advance directive and nominated representative (from PatientProfile),
 and the "Recommended next session" field. A Form B-1 completion declaration checkbox must be
 checked by the psychiatrist before any session record can be approved. Records retained 7 years.
+Note: "Consent status confirmation" field from the prior spec version has been replaced by
+the explicit treatment consent checkbox with prescribed wording (Session 16 Q3 clarification).
 gaps resolved: GAP-034 (Form B-1 all mandatory fields resolved), GAP-039 (advance directive +
 nominated rep), GAP-044 (MSE free-text), GAP-046 (Subjective SOAP), GAP-047 (identity
 verification mandatory), GAP-051 (investigations ordered)
@@ -383,6 +410,53 @@ disclosure of Zoom recording, transcript use, and 7-year encrypted storage. The 
 record must capture recording consent with a timestamp.
 gaps resolved: GAP-026 (hard gate on consent denial resolved), GAP-038 (recording disclosure
 added to consent screen)
+
+---
+
+## CONSTRAINT-032 — Medication Initiation Safety Net; Prescription Comparison Required
+
+source: specs/001-patient-psychiatrist-match/spec.md (FR-048)
+type: protocol
+When a prescription is finalised, the platform must compare all medications in the new
+prescription against all prior finalised prescriptions for the same patient. A medication
+is a "new initiation" only if it does not appear (case-insensitive, normalised) in any
+prior finalised prescription for that patient, regardless of prescribing psychiatrist.
+Two timed triggers fire per new initiation: a patient WhatsApp nudge at day 7 (suppressed
+if patient has a confirmed upcoming booking) and a psychiatrist dashboard notification from
+day 7 until patient books or 30 days elapse. Both events must be audit-logged. Both timing
+defaults are configurable in PlatformConfiguration. No trigger fires for medications already
+present in a prior prescription.
+source note: NEW — FR-048 added to spec Session 16.
+
+---
+
+## CONSTRAINT-033 — Patient Progress Dashboard: Approved Data Only; No Clinical Inference
+
+source: specs/001-patient-psychiatrist-match/spec.md (FR-017a)
+type: nfr
+The FR-017a "Your Progress" dashboard must source all displayed data exclusively from
+psychiatrist-approved records: symptom trajectory from approved CareRecommendation records
+(FR-015b symptom trajectory field), medication adherence streak from FR-021b adherence
+confirmation events (patient taps "Mark as taken"). No population norm comparisons, no
+estimated prognosis, no recovery projections, no AI-generated assessments. The view must
+not be shown until the patient has at least one approved session on record. This constraint
+implements DEC-003 (no automated clinical inference) and DEC-011 (no automated clinical
+diagnosis) for the progress dashboard feature.
+source note: NEW — FR-017a added to spec Session 16.
+
+---
+
+## CONSTRAINT-034 — WhatsApp Button Template Approval Required Before Launch
+
+source: specs/001-patient-psychiatrist-match/spec.md (FR-021b)
+type: protocol
+The WhatsApp Business API button template used for medication reminders (FR-021b) — which
+includes the "Mark as taken" quick-reply button — must receive WhatsApp/Meta platform
+approval before the platform launches. Button template approval is a planning-phase task;
+implementation cannot proceed to production without approved template IDs. The template
+approval process should be initiated early in the planning phase to avoid blocking the Phase
+5 notification feature delivery.
+source note: NEW — FR-021b WhatsApp button template requirement added Session 16.
 
 ---
 
