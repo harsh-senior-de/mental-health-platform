@@ -4,9 +4,9 @@
 Clarification sessions MUST read this file first and resolve OPEN gaps in priority order
 before asking new questions.
 
-**Last Updated**: 2026-05-04
-**Total Gaps**: 52
-**Resolved**: 52
+**Last Updated**: 2026-05-05
+**Total Gaps**: 62
+**Resolved**: 62
 **Open Critical**: 0
 **Open Important**: 0
 **Open Low**: 0
@@ -695,6 +695,100 @@ prescriptions (FR-043). Satisfies Telemedicine Practice Guidelines 2020 prescrip
 
 ---
 
+## IMPORTANT Gaps — UX/Friction Review (actor-flows.md, 2026-05-05)
+
+### GAP-053: Intake Questionnaire Has No Progress Indicator
+**Status**: RESOLVED
+**Session**: 16 Q1
+**Answer**: Option A — section counter ("Section X of N") and estimated time remaining added to FR-002 for every section screen. FR-003 deep-link nudge updated to land at last incomplete section, not questionnaire start.
+**FRs Updated**: FR-002, FR-003
+**Entities Updated**: None
+
+---
+
+### GAP-054: No Slot Hold Countdown Timer on Checkout
+**Status**: RESOLVED
+**Session**: 16 Q2
+**Answer**: Option A — FR-011 updated: checkout screen must show a visible countdown timer; 2-minute warning alert required before slot expires.
+**FRs Updated**: FR-011
+**Entities Updated**: None
+
+---
+
+### GAP-056: Medication Reminder Setup Has Zero Discoverability
+**Status**: RESOLVED
+**Session**: 16 Q4
+**Answer**: Option A — FR-043 updated: upon prescription delivery, platform must show patient a "Set up your medication reminders" prompt linking to FR-021b setup. Primary discoverability surface; no further prompts after this.
+**FRs Updated**: FR-043
+**Entities Updated**: None
+
+---
+
+### GAP-057: Legal Right to Export Records Not Surfaced Before Account Deletion
+**Status**: RESOLVED
+**Session**: 16 Q5
+**Answer**: Option A — FR-028 (Type 1 On-Demand deletion) updated: before deletion confirmation, platform must show "Download your records first" prompt with one-tap FR-036 export trigger. Patient can export-then-delete or skip and delete directly.
+**FRs Updated**: FR-028
+**Entities Updated**: None
+
+---
+
+### GAP-058: No Pre-Session Summary Digest on Patient Profile
+**Status**: RESOLVED
+**Session**: 16 Q6
+**Answer**: Option A — FR-016a added: collapsible pre-session digest panel on patient profile (last session + recommendations, flagged intake changes, active meds, follow-up status). Supports SC-005 and SC-006.
+**FRs Updated**: FR-016a added
+**Entities Updated**: None
+
+---
+
+### GAP-059: Post-Session Prescription Decision Is Ambiguous
+**Status**: RESOLVED
+**Session**: 16 Q7
+**Answer**: Option A — FR-015b updated: after session notes approval, mandatory inline prompt "Does this session require a prescription?" with [Issue Prescription] → FR-043, or [No prescription needed] recorded on Appointment. Prompt cannot be dismissed. Closes Friction Point #1.
+**FRs Updated**: FR-015b
+**Entities Updated**: Appointment (no-prescription decision field)
+
+---
+
+### GAP-060: Psychiatrist Activation Blocked on Optional Profile Fields
+**Status**: RESOLVED
+**Session**: 16 Q8
+**Answer**: Option A — FR-001h updated: activation email sent on mandatory fields only (name, MCI number, email). Optional fields (photo, specialisations, languages, fees) completable post-activation by Admin or psychiatrist. Psychiatrist hidden from matching until fees + ≥1 slot exist.
+**FRs Updated**: FR-001h
+**Entities Updated**: PsychiatristProfile (mandatory vs. optional field distinction now defined)
+
+---
+
+### GAP-061: Psychiatrist Deactivation Has No Downstream Impact Preview
+**Status**: RESOLVED
+**Session**: 16 Q9
+**Answer**: Option A — FR-012b updated: mandatory impact preview (booking count, total refund INR, affected dates/session types, no PII) before deactivation. Admin must type MCI number to confirm. Closes Friction Point #3.
+**FRs Updated**: FR-012b
+**Entities Updated**: None
+
+---
+
+### GAP-062: No Unified Alert Triage Panel for Time-Sensitive Operational Items
+**Status**: RESOLVED
+**Session**: 16 Q10
+**Answer**: Option A — FR-033 updated: unified alert triage panel added at top of Operations Dashboard, aggregating SLA-sensitive items (no-show decisions, deletion SLA breaches, failed refunds) with countdown, action summary, and direct sub-panel link. Sorted by urgency. Collapsible but expanded by default.
+**FRs Updated**: FR-033
+**Entities Updated**: None
+
+---
+
+## LOW PRIORITY Gaps — UX/Friction Review (actor-flows.md, 2026-05-05)
+
+### GAP-055: No "Reschedule Instead?" Prompt During Within-24h Cancellation
+**Status**: RESOLVED
+**Session**: 16 Q3
+**Answer**: Option A — FR-012 updated: within-24h cancellation confirmation modal must include a "Reschedule instead?" option routing to the guided reschedule flow before the fee is forfeited.
+**FRs Updated**: FR-012
+**Entities Updated**: None
+
+---
+
 ## DEFERRED Gaps (address in planning phase, not spec)
 
 - **Zoom waiting room**: Is it enabled by default? Can psychiatrists control entry?
@@ -766,3 +860,13 @@ prescriptions (FR-043). Satisfies Telemedicine Practice Guidelines 2020 prescrip
 | GAP-050 | RESOLVED | Session 14 Q15 | Deferred to v2; v1 psychiatrist asks patient to email reports; results noted in free-text clinical observations |
 | GAP-051 | RESOLVED | Session 15 Q1 | Optional free-text "Investigations ordered" field added to FR-015b; no predefined list; satisfies Form B-1; distinct from result attachments (v2) |
 | GAP-052 | RESOLVED | Session 15 Q2 | FR-001k added: mandatory profile setup step (name, DOB, address) immediately after OTP on first registration; skipped on subsequent logins; feeds FR-043 prescription auto-population |
+| GAP-053 | RESOLVED | 16 Q1 | Section counter + time estimate added to FR-002; FR-003 nudge deep-links to last incomplete section |
+| GAP-054 | RESOLVED | 16 Q2 | Visible countdown + 2-min warning alert added to FR-011 checkout screen requirement |
+| GAP-055 | RESOLVED | 16 Q3 | "Reschedule instead?" option added to FR-012 within-24h cancellation modal |
+| GAP-056 | RESOLVED | 16 Q4 | FR-043 updated: "Set up your medication reminders" prompt shown at prescription delivery |
+| GAP-057 | RESOLVED | 16 Q5 | FR-028 updated: "Download your records first" prompt + one-tap export before deletion confirmation |
+| GAP-058 | RESOLVED | 16 Q6 | FR-016a added: collapsible pre-session digest panel (last session, intake flags, active meds, follow-up) |
+| GAP-059 | RESOLVED | 16 Q7 | FR-015b updated: mandatory post-approval prescription decision prompt; "no prescription" recorded on Appointment |
+| GAP-060 | RESOLVED | 16 Q8 | FR-001h updated: activation on mandatory fields only; optional fields post-activation; hidden from matching until fees + slot |
+| GAP-061 | RESOLVED | 16 Q9 | FR-012b updated: impact preview + MCI number confirmation gate before deactivation executes |
+| GAP-062 | RESOLVED | 16 Q10 | FR-033 updated: unified alert triage panel at top of Operations Dashboard with SLA countdowns |

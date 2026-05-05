@@ -303,7 +303,14 @@ correctly timed, personalized notifications matching their care plan and stated 
   (2) The first AgencyAdmin account for a new agency is created by a Platform Admin.
   Additional AgencyAdmin accounts for an existing agency may be created by any existing
   AgencyAdmin of that agency or by a Platform Admin.
-  (3) Psychiatrist accounts are created by any AgencyAdmin of the same agency.
+  (3) Psychiatrist accounts are created by any AgencyAdmin of the same agency. For
+  psychiatrist accounts, the activation email MUST be sent as soon as the following
+  mandatory fields are filled: full name, MCI registration number, and email address.
+  Optional fields (photo, specialisations, languages, session fees, clinic/affiliation
+  name) may be completed by the Agency Admin or by the psychiatrist from their own
+  profile after activation. A psychiatrist whose optional fields are incomplete MUST
+  NOT appear in matching results — they are hidden from the patient-facing matching pool
+  until at least session fees and one published availability slot exist on their profile.
   All account creation triggers a one-time activation email containing a time-limited
   setup link (expiry per PlatformConfiguration, default: 24 hours) through which the
   user sets their password and completes TOTP enrollment. Accounts cannot be used until
@@ -329,9 +336,13 @@ correctly timed, personalized notifications matching their care plan and stated 
   symptoms, symptom severity, mental health history, current medications, lifestyle factors,
   and psychiatrist preferences (gender, language). The platform supports three session types
   (FR-042); consultation mode constraints per session type apply from booking through to
-  Zoom meeting creation.
+  Zoom meeting creation. The questionnaire MUST display a visible section counter ("Section
+  X of N") and an estimated time remaining on every section screen, so the patient always
+  knows how far they are from completion.
 - **FR-003**: The system MUST save questionnaire progress after each section so that a patient
-  who exits mid-way can resume from the same point on next login.
+  who exits mid-way can resume from the same point on next login. The 48-hour inactivity
+  nudge (FR-003) MUST deep-link the patient directly to their last incomplete section, not
+  to the start of the questionnaire.
 - **FR-004**: The system MUST create a structured patient profile upon intake completion,
   storing all responses in a queryable, normalized format.
 - **FR-004a**: Patients MUST be able to view their complete intake questionnaire responses
@@ -513,6 +524,11 @@ correctly timed, personalized notifications matching their care plan and stated 
     "Your prescription from Dr. [Name] (MCI Reg: [number]) is ready — [download link]"
   - The prescription is retained as part of the patient's clinical record for 7 years,
     subject to the same anonymisation pipeline as other clinical records (FR-029)
+  - The platform MUST display a "Set up your medication reminders" prompt to the patient
+    at the moment the prescription appears in their profile. The prompt links directly to
+    the reminder setup in "My Medications" (FR-021b). This is the primary discoverability
+    surface for medication reminders — patients who do not set a reminder time here will
+    not be prompted again.
 
   A prescription is optional per session — not every session results in a new prescription.
   Psychiatrists may also amend a prescription within 24 hours of finalisation to correct
@@ -635,7 +651,10 @@ correctly timed, personalized notifications matching their care plan and stated 
   available — please choose another" and show the psychiatrist's remaining available slots.
   The patient remains on the same screen with no need to restart the flow. If the slot is
   still available, it MUST be temporarily held (reserved) for a maximum of 10 minutes
-  during checkout to prevent it from being booked by another patient simultaneously.
+  during checkout to prevent it from being booked by another patient simultaneously. The
+  checkout screen MUST display a visible countdown timer showing the remaining hold time.
+  When 2 minutes remain, the platform MUST show a prominent warning alert so the patient
+  can complete payment before the slot is released.
 - **FR-011a**: Payment MUST be collected via Razorpay. Booking confirmation uses a
   three-path strategy — whichever path fires first completes the booking:
 
@@ -691,8 +710,11 @@ correctly timed, personalized notifications matching their care plan and stated 
   Cancellations within 24 hours are non-refundable; the slot is still released for rebooking
   by other patients. Before a within-24h cancellation is finalised, the platform MUST display
   a confirmation step clearly stating the exact session fee amount that will be forfeited and
-  that no refund will be issued. The patient MUST explicitly confirm before the cancellation
-  proceeds — there is no way to trigger a non-refundable cancellation in a single tap. Rescheduling is a guided cancel-then-rebook flow — there is no separate
+  that no refund will be issued. The confirmation modal MUST also show a "Reschedule
+  instead?" option that routes the patient directly into the guided reschedule flow — giving
+  the patient an exit from cancellation before the fee is forfeited. The patient MUST
+  explicitly confirm before the cancellation proceeds — there is no way to trigger a
+  non-refundable cancellation in a single tap. Rescheduling is a guided cancel-then-rebook flow — there is no separate
   rescheduling state machine. When a patient selects "Reschedule", the platform cancels the
   existing booking applying the standard refund rules above, marks the appointment as
   cancelled-by-patient (rescheduled) in the patient's history, and immediately routes the
@@ -711,7 +733,15 @@ correctly timed, personalized notifications matching their care plan and stated 
   each affected patient via SMS and WhatsApp (if enabled) with the cancellation reason entered
   by the admin at the time of deactivation, a statement that their refund has been initiated
   and will reach their account within 5–7 business days, and a direct link to the matching
-  flow to rebook with a new psychiatrist. The deactivated psychiatrist's historical session records and
+  flow to rebook with a new psychiatrist.
+
+  Before the deactivation action is executed, the platform MUST display an impact preview
+  to the admin showing: (1) the exact number of upcoming confirmed bookings that will be
+  cancelled, (2) the total refund value in INR across all cancelled bookings, and (3) the
+  list of affected appointment dates and session types (no patient names or PII). To
+  confirm the destructive action, the admin MUST type the psychiatrist's MCI registration
+  number into a confirmation field. Deactivation proceeds only after this confirmation.
+  This gate makes the irreversibility of the action tangible before it executes. The deactivated psychiatrist's historical session records and
   approved care recommendations remain part of the patient's care history and are accessible
   to any new psychiatrist the patient matches with.
 - **FR-013**: Psychiatrists MUST be able to view the following for any patient they have
@@ -793,6 +823,15 @@ correctly timed, personalized notifications matching their care plan and stated 
   by checking a declaration before the session record is approved and written to the
   patient's care record. The session record is stored as the platform's Form B-1
   equivalent and retained for 7 years.
+
+  Immediately after the psychiatrist approves the session record, the platform MUST
+  display an inline prescription decision prompt: "Does this session require a
+  prescription?" with two options: [Issue Prescription] and [No prescription needed
+  for this session]. Selecting "Issue Prescription" navigates directly to the
+  e-prescription tool (FR-043). Selecting "No prescription needed" records an explicit
+  no-prescription decision on the Appointment record, making the absence of a
+  prescription auditable. The prompt cannot be dismissed without selecting one of the
+  two options.
 - **FR-015c**: If no transcript is received from Zoom within 60 minutes of a session's
   scheduled end time, the system MUST: (1) display a notice to the psychiatrist on the
   patient's record stating the transcript was not received, (2) prompt them to enter
@@ -800,6 +839,19 @@ correctly timed, personalized notifications matching their care plan and stated 
   in the audit trail. No retry is attempted; manual entry is the sole fallback.
 - **FR-016**: The system MUST append all approved recommendations to the patient's permanent
   record, timestamped and attributed to the psychiatrist who approved them.
+- **FR-016a**: The patient profile page (as viewed by the psychiatrist) MUST display a
+  collapsible pre-session digest panel at the top of the record. The digest MUST show:
+  (1) Date of last completed session and the key recommendations approved at that session;
+  (2) Any intake changes flagged since the last session (FR-004a) — surfaced as an alert
+  so the psychiatrist does not need to scroll the full intake to detect them;
+  (3) Currently active medications sourced from the most recent finalised prescription
+  (FR-043), including drug name, dosage, and duration remaining;
+  (4) The follow-up interval set at the last session (FR-046) and whether the patient has
+  already booked a follow-up.
+  The full patient record (all history, all transcripts, all recommendations) remains
+  accessible below the digest. The panel is collapsed by default on return visits once
+  the psychiatrist has dismissed it. This FR directly supports SC-005 (record access
+  in <10 seconds) and SC-006 (draft approval in <2 minutes).
 - **FR-017**: Patients MUST be able to view their complete care history: all past sessions,
   recommendations, and their current active care plan. For each upcoming confirmed
   appointment, the patient's portal MUST prominently display the Zoom join link so the
@@ -928,8 +980,13 @@ and compliance across all deletion scenarios.
   each enqueued as a typed job:
 
   - **Type 1 — On-Demand**: Triggered when a patient submits a self-service deletion
-    request from their profile settings. SLA: processed within 72 hours of request.
-    Patient receives a WhatsApp/SMS confirmation when complete.
+    request from their profile settings. Before showing the deletion confirmation modal,
+    the platform MUST display a "Download your records first" prompt with a one-tap button
+    to enqueue an FR-036 records export job. The patient can choose to request the export
+    and then proceed to delete, or skip the export and proceed directly. This prompt MUST
+    appear before the deletion confirmation — a patient who deletes without exporting
+    permanently loses access to their clinical history. SLA: processed within 72 hours of
+    request. Patient receives a WhatsApp/SMS confirmation when complete.
 
   - **Type 2 — Abandoned Account Cleanup**: Triggered automatically when a patient account
     has been in incomplete-intake status with no login for 30 consecutive days. A single
@@ -967,7 +1024,16 @@ and compliance across all deletion scenarios.
   when the job completes within the 72-hour SLA.
 
 - **FR-033**: The platform MUST provide a Platform Admin portal accessible only to the
-  platform operator's internal staff (PlatformAdmin role). Platform Admins MUST be able to:
+  platform operator's internal staff (PlatformAdmin role). The Operations Dashboard MUST
+  display a unified alert triage panel at the top of the page, above all sub-panels. This
+  panel aggregates all time-sensitive actionable items across sub-panels — specifically:
+  manual-review no-show decisions pending action (24h SLA, FR-045), deletion jobs that
+  have breached or are approaching their SLA (72h for On-Demand, FR-028), and failed
+  auto-refunds requiring manual intervention. Each alert item MUST show: a countdown to
+  SLA breach, a summary of the required action, and a direct link to the relevant sub-panel
+  entry. Items are sorted by time remaining (most urgent first). The alert panel is
+  collapsible but expanded by default. When the panel is empty (no actionable items),
+  it displays "No urgent items." Platform Admins MUST be able to:
   (1) view the deletion job dashboard (pending, processing, completed, SLA-breached jobs
   by type — no PII visible); (2) view payment reconciliation flags (unresolved Razorpay
   orders, failed auto-refunds); (3) view Zoom transcript failure logs; (4) view WhatsApp
