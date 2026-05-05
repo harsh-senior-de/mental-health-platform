@@ -170,8 +170,17 @@
 29. Patient sees **My Medications** section in profile.
     - Lists each active medication from finalised prescriptions. (FR-021b)
     - For each medication, patient can set a daily reminder time (e.g., 08:00).
-    - Platform sends Tier 3 WhatsApp reminder daily at that time: *"Time for your ESCITALOPRAM — 10mg, once daily. Prescribed by Dr. [Name]."*
+    - Platform sends Tier 3 WhatsApp reminder daily at that time using a button template: *"Time for your ESCITALOPRAM — 10mg, once daily. Prescribed by Dr. [Name]."* with a **"Mark as taken ✓"** quick-reply button. (FR-021b)
+    - Patient taps button → platform records an adherence confirmation event for that day. Non-response is unconfirmed (not counted as non-adherent). (FR-021b)
     - Reminder runs automatically for the prescription duration then stops. Patient can update or cancel at any time. (FR-021b)
+
+30. Patient views **Your Progress** dashboard. (FR-017a)
+    - Shown only after at least one approved session on record.
+    - Symptom trajectory timeline: per-session Improved / Stable / Worsened indicator sourced from psychiatrist-approved session notes.
+    - Medication adherence streak: consecutive days the patient tapped "Mark as taken ✓" on at least one reminder. Days with no active reminder are excluded.
+    - Sessions completed counter: total approved sessions on the platform.
+    - Recommended next session prompt: *"Dr. [Name] recommends checking in around [date]."* with direct "Book now" link. (FR-046)
+    - No clinical jargon, no automated diagnosis, no AI-generated assessments — all data sourced exclusively from psychiatrist-approved records.
 
 ---
 
@@ -197,7 +206,7 @@
 ### Phase 10: Rebooking (Returning Patient)
 
 33. Patient returns to Booking Screen.
-    - "Previously seen" section: one-tap to slot selection for a prior psychiatrist — no re-running of matching algorithm. (FR-007, FR-018)
+    - "Previously seen" section: one-tap to slot selection for a prior psychiatrist — no re-running of matching algorithm. Each card shows name, photo, specialisation, percentile rank, Follow-Up fee, and earliest available slot. (FR-007, FR-018, FR-038)
 
 34. Patient wants an **Urgent Review** (acute deterioration):
     - Available only if patient has ≥1 prior completed Initial Assessment. (FR-042)
@@ -214,7 +223,8 @@
     - Profile Settings → "Request My Records."
     - One button covers both DPDPA 2023 data portability and MHCA 2017 Section 25 clinical records access (Form A equivalent). (FR-036)
     - Immediate on-screen acknowledgement. Within 72h: secure time-limited download link via WhatsApp + SMS.
-    - Export includes: intake responses, all approved session notes, all prescription PDFs, appointment history, notification preferences, own SessionFeedback records.
+    - Export includes: intake responses, all approved session notes / care recommendations, appointment history, notification preferences, own SessionFeedback records.
+    - Prescription PDFs are excluded — patients download these individually from appointment history. (FR-043, FR-036)
     - Download link expires after 48h. (FR-036)
 
 37. **Delete account:**
@@ -315,8 +325,8 @@
     - Presenting complaints summary.
     - Clinical observations / progress notes.
     - Treatment type: pharmacological / psychotherapy / combined.
-    - Consent status confirmation.
-    - Identity verification checkbox: *"I have verbally confirmed this patient's name and date of birth at the start of this session."* — mandatory; audit-logged with timestamp. (FR-015b, FR-047)
+    - Treatment consent checkbox: *"The patient has given verbal consent to the treatment discussed in this session."* — satisfies MHCA 2017 per-session consent documentation requirement. (FR-015b)
+    - Identity verification checkbox: *"I have verbally confirmed this patient's name and date of birth at the start of this session."* — mandatory; audit-logged with timestamp. (FR-015b)
 
     **Optional fields:**
     - History summary, techniques used, capacity assessment notes, risk/benefit notes.
