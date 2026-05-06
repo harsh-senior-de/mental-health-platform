@@ -39,7 +39,7 @@
 - [ ] T022 Write failing tests for settings provider: `.env` loading (local), SSM Parameter Store (demo), and Secrets Manager (production) all returning the same typed config
 - [ ] T023 Implement `SettingsProvider` with `SETTINGS_BACKEND=env|ssm|secrets_manager` env var selecting the backend at runtime
 - [ ] T024 Write failing tests for `StoragePort`: local filesystem write/read/delete and signed-URL generation, and S3 upload/download/delete/presigned-URL — both via the same interface
-- [ ] T025 Implement `LocalStorageAdapter` (writes to `./storage/`, generates local URLs) and `S3StorageAdapter` (boto3); `STORAGE_BACKEND=local|s3` selects at runtime; no code outside `shared/storage` imports boto3 directly
+- [ ] T025 Implement `LocalStorageAdapter` (writes to `./storage/`, generates local URLs) and `S3StorageAdapter` (boto3); `STORAGE_BACKEND=local|s3` selects the adapter; `STORAGE_S3_ENDPOINT_URL` points to Cloudflare R2 (demo) or AWS S3 (production) — same adapter, different endpoint; no code outside `shared/storage` imports boto3 directly
 - [ ] T026 Request code review for foundation against plan, constitution, PHI/PII logging, RBAC rules, storage adapter, and settings provider
 
 **Checkpoint**: Foundation reviewed and passing. No user-story work starts until T012–T026 pass.
@@ -137,7 +137,7 @@
 - [ ] T088 Write failing tests for new medication initiation day-7 patient nudge and psychiatrist dashboard alert
 - [ ] T089 Implement medication initiation review workflow
 - [ ] T090 Write failing tests for patient data export package contents, StoragePort delivery link, and transcript/prescription exclusions
-- [ ] T091 Implement asynchronous export job, encrypted S3 package via StoragePort, and time-limited delivery link
+- [ ] T091 Implement asynchronous export job, file package via StoragePort (R2 in demo, S3+KMS in production), and time-limited presigned delivery link
 - [ ] T092 Write failing tests for on-demand deletion, abandoned account deletion, expiry purge, and two-phase anonymisation
 - [ ] T093 Implement data lifecycle job service and platform admin job dashboard
 - [ ] T094 Request code review for US4, including DPDPA rights, notification consent, daily caps, anonymisation, and audit safety
@@ -148,10 +148,10 @@
 
 **Purpose**: Validate on the cloud demo, complete admin surfaces, harden for production, and provision production AWS infrastructure.
 
-### Demo Deployment
+### Demo Validation
 
-- [ ] T095 Create `apprunner.yaml` service config and `scripts/deploy-demo.sh` that builds the Docker image and creates/updates the App Runner service; document Neon and Upstash setup in quickstart.md
-- [ ] T096 Deploy to App Runner + Neon + Upstash; run smoke tests against the deployed demo URL covering health, OTP flow, matching, booking, and prescription download
+- [ ] T095 Create `scripts/demo.sh` that starts Docker Compose and opens an ngrok tunnel; set up Cloudflare R2 bucket for file storage in demos; document ngrok paid ($8/month) as the stable-subdomain option; document App Runner path for 24/7 unattended access
+- [ ] T096 Run full demo smoke test via ngrok: health check, OTP flow, matching, booking, prescription PDF download from R2; confirm the entire flow works on a mobile browser through the tunnel
 
 ### Production AWS Infrastructure
 

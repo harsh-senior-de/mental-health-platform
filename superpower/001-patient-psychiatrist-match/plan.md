@@ -11,23 +11,23 @@ Build a web-based telepsychiatry platform for India where patients authenticate 
 
 ## Approved Architecture Decisions
 
-| Area | Demo (free → ~$35/month) | Production (500–5,000 users) |
-|---|---|---|
-| Backend | Python 3.12+ / FastAPI | Same |
-| Frontend | React + Vite | Same |
-| API style | REST, versioned `/api/v1` | Same |
-| Service shape | Modular monolith | Same |
-| Hosting | AWS App Runner (scales to zero) | ECS Fargate + ALB |
-| Database | Neon free tier or RDS t3.micro single-AZ | RDS PostgreSQL Multi-AZ |
-| ORM/migrations | SQLAlchemy 2.0 + Alembic | Same |
-| Async jobs | Celery + Upstash Redis (free tier) | Celery + ElastiCache Redis |
-| File storage | `LocalStorageAdapter` (dev) / S3 + SSE-S3 (demo) | S3 + KMS |
-| Secrets | `.env` (dev) / SSM Parameter Store free tier (demo) | AWS Secrets Manager |
-| Encryption | SSE-S3 (free) | AWS KMS |
-| Edge | None | CloudFront + AWS WAF |
-| Observability | Structured stdout logs | CloudWatch logs/metrics/alarms |
-| Infrastructure as Code | Docker Compose + App Runner CLI | Terraform |
-| CI/CD | GitHub Actions → Docker build | GitHub Actions → ECR → ECS |
+| Area | Dev / Demo (laptop on) | 24/7 Unattended Demo | Production |
+|---|---|---|---|
+| Backend | Python 3.12+ / FastAPI | Same | Same |
+| Frontend | React + Vite | Same | Same |
+| API style | REST, versioned `/api/v1` | Same | Same |
+| Service shape | Modular monolith | Same | Same |
+| Hosting | Docker Compose + ngrok ($0) | AWS App Runner (~$5–15/month) | ECS Fargate + ALB |
+| Database | Docker Compose postgres | Neon free tier or RDS t3.micro | RDS PostgreSQL Multi-AZ |
+| ORM/migrations | SQLAlchemy 2.0 + Alembic | Same | Same |
+| Async jobs | Docker Compose redis + Celery | Upstash Redis free tier | ElastiCache Redis |
+| File storage | `LocalStorageAdapter` | Cloudflare R2 free tier | S3 + KMS |
+| Secrets | `.env` file | App Runner env vars (encrypted) | AWS Secrets Manager |
+| Encryption | None needed | R2 default encryption (free) | AWS KMS |
+| Edge | None | None | CloudFront + AWS WAF |
+| Observability | Structured stdout logs | Same | CloudWatch logs/metrics/alarms |
+| Infrastructure as Code | Docker Compose | App Runner CLI | Terraform |
+| CI/CD | Local | GitHub Actions → Docker build | GitHub Actions → ECR → ECS |
 
 **Promotion rule**: every component swap is an environment variable or Terraform module change. Application code never changes between demo and production.
 
@@ -132,22 +132,31 @@ infra/
 
 **Structure Decision**: Use one repository with separate backend, frontend, and infrastructure directories. Backend modules match the service boundaries in `docs/ARCHITECTURE.md`; routers only validate DTOs and call service-layer methods. Database access goes through SQLAlchemy repositories/services, never from route handlers.
 
-## Demo Runtime Topology (~$0 locally / ~$20–35/month cloud)
+## Demo Runtime Topology
 
 ```text
-Docker Compose (local dev — free)
+Dev + Demo while laptop is on — $0
+─────────────────────────────────
+docker compose up
   postgres:16-alpine
   redis:7-alpine
-  api container (FastAPI + Celery worker + beat combined)
+  api (FastAPI + Celery worker + beat combined)
+  web (Vite dev server)
   LocalStorageAdapter → ./storage/
   .env file for secrets
 
-AWS App Runner (cloud demo — ~$5–15/month active, $0 idle)
-  App Runner service (same Docker image)
-  Neon free tier PostgreSQL  OR  RDS t3.micro single-AZ (~$15/month)
+ngrok http 8000
+  → public HTTPS URL anyone can open on their phone
+  → tunnels to localhost
+  → $0 (free tier); $8/month for a stable custom subdomain
+
+24/7 Unattended Demo — ~$5–15/month
+─────────────────────────────────────
+AWS App Runner (same Docker image, no code changes)
+  Neon free tier PostgreSQL (auto-suspends, 0.5GB)
   Upstash Redis free tier (10k commands/day)
-  S3 bucket with SSE-S3 (free encryption)
-  SSM Parameter Store standard parameters (free)
+  Cloudflare R2 free tier (10GB, no egress fees, S3-compatible)
+  env vars set directly in App Runner service config (encrypted at rest)
 ```
 
 ## Production Runtime Topology (ECS Fargate, Terraform-managed)
@@ -173,11 +182,11 @@ CloudWatch Logs/Metrics/Alarms
 
 | Demo component | Production swap | How |
 |---|---|---|
-| App Runner | ECS Fargate + ALB | Terraform module |
+| ngrok / App Runner | ECS Fargate + ALB | Terraform module, same Docker image |
 | Neon / RDS single-AZ | RDS Multi-AZ | One Terraform variable |
 | Upstash Redis | ElastiCache | Change `CELERY_BROKER_URL` |
-| S3 + SSE-S3 | S3 + KMS | One Terraform line |
-| SSM Parameter Store | Secrets Manager | `SETTINGS_BACKEND=secrets_manager` |
+| Cloudflare R2 | S3 + KMS | Clear `STORAGE_S3_ENDPOINT_URL`; add KMS key ARN |
+| App Runner env vars | Secrets Manager | `SETTINGS_BACKEND=secrets_manager` |
 | None | CloudFront + WAF | Terraform modules |
 
 ## Phase 0 Research Output

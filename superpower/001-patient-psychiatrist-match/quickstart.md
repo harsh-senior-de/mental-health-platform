@@ -74,26 +74,40 @@ terraform validate
 terraform plan
 ```
 
-## Cloud Demo Deployment (App Runner)
+## Demo via ngrok (laptop on — free)
 
-**One-time setup** — create a free Neon database and Upstash Redis instance, then set:
-```
-DATABASE_URL=postgresql://...neon.tech/...
-CELERY_BROKER_URL=rediss://...upstash.io:6379
-STORAGE_BACKEND=s3
-STORAGE_S3_BUCKET=mhp-demo
-SETTINGS_BACKEND=ssm
-```
-
-**Deploy**:
 ```bash
-# Build and push image, create/update App Runner service
+# Start everything locally
+docker compose up -d
+
+# Open a public HTTPS tunnel
+ngrok http 8000
+# → share the URL with anyone; works on mobile
+```
+
+For a **stable URL** across sessions (no random subdomain each restart): ngrok paid plan at $8/month gives a fixed custom subdomain.
+
+For **file storage in demos** (prescription PDFs, exports): create a free Cloudflare R2 bucket and set:
+```
+STORAGE_BACKEND=s3
+STORAGE_S3_ENDPOINT_URL=https://<account_id>.r2.cloudflarestorage.com
+STORAGE_S3_BUCKET=mhp-demo
+STORAGE_S3_ACCESS_KEY_ID=<r2_key>
+STORAGE_S3_SECRET_ACCESS_KEY=<r2_secret>
+```
+
+## 24/7 Unattended Demo (App Runner — ~$5–15/month)
+
+Only needed when the demo must run while your laptop is off.
+
+1. Create a free [Neon](https://neon.tech) PostgreSQL database
+2. Create a free [Upstash](https://upstash.com) Redis instance
+3. Set up a Cloudflare R2 bucket (as above)
+4. Deploy:
+```bash
 bash scripts/deploy-demo.sh
 ```
-
-App Runner provides HTTPS automatically. No ALB, no CloudFront, no Terraform needed.
-
-**Promote to production**: change `apprunner` → `ecs` Terraform module, point to RDS Multi-AZ and ElastiCache. Same Docker image, no code changes.
+App Runner injects env vars directly — no SSM needed. Same Docker image as local, no code changes.
 
 ## TDD Workflow
 

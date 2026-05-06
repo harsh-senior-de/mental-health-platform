@@ -50,9 +50,9 @@
 
 ## File Storage
 
-**Decision**: `LocalStorageAdapter` for dev; S3 + SSE-S3 for demo; S3 + KMS for production.
+**Decision**: `LocalStorageAdapter` for dev; Cloudflare R2 free tier for demo; S3 + KMS for production.
 
-**Rationale**: S3 is durable, integrates with time-limited download links, lifecycle policies, and encryption. A `StoragePort` interface with two adapters (`LocalStorageAdapter` writing to `./storage/`, `S3StorageAdapter` using boto3) allows local dev and CI to run without AWS credentials. SSE-S3 (S3-managed encryption) is free and sufficient for demo; KMS is added at production for explicit key management and audit trails. The `STORAGE_BACKEND=local|s3` env var selects the adapter at runtime.
+**Rationale**: A `StoragePort` interface with two adapters (`LocalStorageAdapter` writing to `./storage/`, `S3StorageAdapter` using boto3) allows local dev and CI to run without any cloud credentials. Cloudflare R2 is S3-compatible — the same `S3StorageAdapter` works with R2 by setting `STORAGE_S3_ENDPOINT_URL`; R2 has a free tier (10GB/month, no egress fees) making it strictly better than S3 for demo. Production uses S3 + KMS for AWS-native key management, audit trails, and VPC endpoint access. The `STORAGE_BACKEND=local|s3` env var selects the adapter; `STORAGE_S3_ENDPOINT_URL` points to R2 (demo) or AWS S3 (production).
 
 ## Secrets and Encryption
 
@@ -74,8 +74,9 @@ All infrastructure decisions share one constraint: **the application code must n
 |---|---|---|
 | `DATABASE_URL` | Neon connection string | RDS connection string |
 | `CELERY_BROKER_URL` | `rediss://...upstash.io` | `redis://...elasticache` |
-| `STORAGE_BACKEND` | `local` (dev) / `s3` (demo) | `s3` |
-| `STORAGE_S3_BUCKET` | demo bucket + SSE-S3 | prod bucket + KMS |
-| `SETTINGS_BACKEND` | `env` (dev) / `ssm` (demo) | `secrets_manager` |
+| `STORAGE_BACKEND` | `local` (dev) / `s3` (demo+prod) | `s3` |
+| `STORAGE_S3_ENDPOINT_URL` | (unset for dev) / `https://...r2.cloudflarestorage.com` | (unset — AWS S3) |
+| `STORAGE_S3_BUCKET` | (unset for dev) / R2 bucket name | prod S3 bucket + KMS key ARN |
+| `SETTINGS_BACKEND` | `env` (dev+demo) | `secrets_manager` |
 
 No code changes. Every promotion is a configuration change and optionally a Terraform module addition.
