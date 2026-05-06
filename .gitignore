@@ -11,3 +11,19 @@ coverage/
 playwright-report/
 test-results/
 *.tsbuildinfo
+
+# Python virtual environments
+apps/api/.venv/
+apps/api/__pycache__/
+apps/api/.mypy_cache/
+apps/api/.ruff_cache/
+apps/api/.pytest_cache/
+apps/api/htmlcov/
+apps/api/.coverage
+
+# Frontend
+apps/web/node_modules/
+apps/web/dist/
+
+# Storage
+storage/
