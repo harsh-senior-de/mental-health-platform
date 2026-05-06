@@ -43,6 +43,25 @@ Build a web-based telepsychiatry platform for India where patients authenticate 
 **Constraints**: No PHI/PII in logs, metrics, or traces; all PHI encrypted at rest and in transit; all thresholds stored in `PlatformConfiguration`; RBAC enforced in service layer  
 **Scale/Scope**: 500 concurrent users at launch, 5,000 concurrent users without structural rewrite
 
+### Database Connection Pooling
+
+- Use `asyncpg` driver (`DATABASE_URL` with `postgresql+asyncpg://`).
+- `pool_size=10`, `max_overflow=5`, `pool_recycle=300`.
+- ECS: number of tasks × `(pool_size + max_overflow)` must stay below RDS `max_connections` for the chosen instance size (RDS `t3.micro`: 85 connections; `t3.small`: 170).
+
+### Alembic Migration Strategy
+
+- All migrations must be backward-compatible (Expand-Contract pattern).
+- Never add a `NOT NULL` column without a server-side default in the same migration.
+- Column renames require a 3-phase migration: add new column → backfill → drop old column in separate deploy.
+- ECS rolling deploys run old and new task definitions simultaneously — migrations must not break the old version.
+
+### Celery Task Policies
+
+- Payment reconciliation task: `max_retries=5`, exponential backoff starting at 60s. Dead-letter queue (`failed_reconciliation`) after 5 failures; page on-call after 3. Idempotency key on `Payment` row prevents double-credit.
+- Notification jobs: `max_retries=3`, linear backoff 30s. Failed delivery updates `NotificationJob.status` to `failed`; admin dashboard surfaces failures.
+- Export/deletion jobs: `max_retries=2`, 5-min delay. Failure surfaces in platform admin ops dashboard.
+
 ## Constitution Check
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
@@ -56,6 +75,48 @@ Build a web-based telepsychiatry platform for India where patients authenticate 
 | Observability & Audit Compliance | Structured JSON logs, correlation IDs, audit logging without PHI/PII | PASS |
 | Architecture Rules | Modular service-oriented backend, versioned `/api/v1`, event-driven async workflows | PASS |
 | Data & Database Rules | PostgreSQL normalized schema; no unstructured JSON except explicitly justified metadata | PASS |
+
+## Security Architecture
+
+### Session Management
+
+- Patient sessions: issue HttpOnly `SameSite=Strict` opaque token stored in Redis with TTL from `PlatformConfiguration.session_timeout` (30-min idle / 8-hr absolute). No JWT. No `localStorage`.
+- Staff sessions: same cookie mechanism plus TOTP verification before session is activated.
+- Session rotation: new token issued on each authenticated request that has been idle >5 minutes.
+- Revocation: `POST /api/v1/auth/logout` purges the Redis session entry immediately.
+- `SessionToken` entity (in data model) stores token hash, `created_at`, `last_active_at`, `expires_at`.
+
+### Webhook Signature Verification
+
+- Razorpay: verify `X-Razorpay-Signature` header using HMAC-SHA256 of `razorpay_order_id + "|" + razorpay_payment_id` with `RAZORPAY_WEBHOOK_SECRET`. Use `hmac.compare_digest`. Reject with 400 if missing or invalid. Log rejection (without payload body) to audit log.
+- Zoom: verify `X-Zoom-Signature` using HMAC-SHA256 of `"v0:" + timestamp + ":" + raw_body` with `ZOOM_WEBHOOK_SECRET`. Reject requests where `X-Zoom-Request-Timestamp` is >5 minutes old. Reject with 400 if invalid.
+- Both checks happen in FastAPI middleware/dependency before the handler body runs.
+
+### OTP Rate Limiting
+
+- Per-mobile: max 3 OTP requests per 10-minute window (configurable in `PlatformConfiguration`).
+- Per-IP: max 10 OTP requests per 10-minute window (configurable).
+- Implemented via Redis token-bucket in FastAPI middleware (`slowapi` or custom).
+- Lockout after 3 consecutive failed OTP verifications: 15-minute lock stored on `Patient.otp_locked_until`.
+
+### TOTP Enrollment (Staff)
+
+- Generate TOTP secret (RFC 6238, 6-digit, 30s window) on first login.
+- Display QR code once — secret never transmitted after enrollment.
+- Staff must confirm one valid TOTP code before account activates.
+- Backup codes: 8 × 8-char alphanumeric, hashed with bcrypt, displayed once, stored hashed.
+- Secret stored in `StaffUser.totp_secret_encrypted`.
+
+### CSRF Protection
+
+- Session cookie uses `SameSite=Strict` — primary CSRF defense.
+- All state-changing endpoints additionally check `Origin` header matches configured `ALLOWED_ORIGINS`.
+
+### HTTPS
+
+- ngrok (dev/demo): provides TLS termination automatically.
+- App Runner (24/7 demo): auto-provisions TLS certificate.
+- All environments: add `Strict-Transport-Security: max-age=31536000; includeSubDomains` response header in FastAPI middleware.
 
 ## Project Structure
 
@@ -153,7 +214,7 @@ ngrok http 8000
 24/7 Unattended Demo — ~$5–15/month
 ─────────────────────────────────────
 AWS App Runner (same Docker image, no code changes)
-  Neon free tier PostgreSQL (auto-suspends, 0.5GB)
+  Neon free tier PostgreSQL (auto-suspends, 0.5GB active storage (auto-suspends when idle))
   Upstash Redis free tier (10k commands/day)
   Cloudflare R2 free tier (10GB, no egress fees, S3-compatible)
   env vars set directly in App Runner service config (encrypted at rest)
@@ -189,6 +250,19 @@ CloudWatch Logs/Metrics/Alarms
 | App Runner env vars | Secrets Manager | `SETTINGS_BACKEND=secrets_manager` |
 | None | CloudFront + WAF | Terraform modules |
 
+### Data Residency (DPDPA 2023)
+
+- All AWS resources: region `ap-south-1` (Mumbai). No cross-region replication without explicit consent.
+- Neon demo database: must use a region closest to India (use RDS `t3.micro` in `ap-south-1` if Neon's Mumbai region is unavailable on free tier).
+- Cloudflare R2 bucket: set `--location-hint apac` at creation.
+- All `DATABASE_URL`, `CELERY_BROKER_URL`, and storage endpoints must resolve to India-region infrastructure in staging and production.
+
+### DPDPA 2023 Obligations
+
+- Deletion SLA: on-demand deletion requests must complete (PII removal + async anonymisation) within 72 hours. `DataLifecycleJob` records must have `requested_at`; a CloudWatch alarm fires if any deletion job remains `pending` for >24 hours.
+- Export SLA: data export packages must be delivered within 7 days; links expire after 48 hours.
+- Audit retention: 7 years minimum from last platform activity.
+
 ## Phase 0 Research Output
 
 See [research.md](./research.md). Key decisions:
@@ -214,9 +288,26 @@ Design highlights:
 
 1. Foundation: Python backend app shell, test tooling, migrations, database session management, API shell, structured logging, correlation IDs, configuration, Terraform skeleton.
 2. MVP P1: patient OTP/consent/profile/intake, psychiatrist/admin account scaffolding, matching, availability, payment booking, Zoom meeting creation.
-3. P2 clinical continuity: transcript ingestion, session notes, care recommendations, prescriptions, feedback, care history.
+3. P2 clinical continuity: transcript ingestion, session notes (including MHC Form B-1 session notes, legally required under MHCA 2017), care recommendations, prescriptions, feedback, care history.
 4. P2 notifications and lifecycle: WhatsApp reminders, adherence confirmations, follow-up nudges, exports, deletion/anonymisation.
 5. Admin and hardening: platform configuration, ops dashboards, audit search, accessibility, security, performance, compliance review.
+
+## CI/CD Pipeline
+
+### Branch Strategy
+
+- `main` branch: protected; no direct push.
+- Feature branches off `main`; PR required for all merges.
+- PR gates: `pytest` + `ruff check` + `mypy app` + `npm run test` + `npm run lint` + `npm run typecheck` must all pass.
+
+### Pipeline Stages (GitHub Actions)
+
+1. On PR: run full test suite + lint + type-check.
+2. On merge to `main`: build Docker image → push to ECR (tagged with git SHA).
+3. Staging deploy: update ECS service with new image → run smoke tests → manual approval gate.
+4. Production deploy: after staging approval → update production ECS service → monitor CloudWatch alarm for 10 minutes → auto-rollback on alarm.
+
+**Demo deploy**: `bash scripts/deploy-demo.sh` — `aws apprunner update-service` with the new ECR image tag.
 
 ## TDD and Review Gates
 

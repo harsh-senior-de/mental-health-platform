@@ -4,23 +4,245 @@ info:
   version: 0.1.0
 servers:
   - url: /api/v1
+security:
+  - sessionCookie: []
 paths:
+  # ── Health ──────────────────────────────────────────────────────────────
+  /health:
+    get:
+      summary: Health check
+      operationId: healthCheck
+      security: []
+      tags: [Health]
+      responses:
+        "200":
+          description: Service healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+
+  # ── Auth — Patient ───────────────────────────────────────────────────────
   /auth/patient/otp:
     post:
       summary: Request patient OTP
       operationId: requestPatientOtp
+      security: []
       tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [mobile_number]
+              properties:
+                mobile_number:
+                  type: string
+                  description: E.164 format (+91XXXXXXXXXX)
+                  example: "+919876543210"
       responses:
         "202":
           description: OTP request accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  otp_request_id:
+                    type: string
+                    format: uuid
+                  expires_in_seconds:
+                    type: integer
+                    example: 300
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "422":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "429":
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /auth/patient/otp/verify:
     post:
       summary: Verify patient OTP
       operationId: verifyPatientOtp
+      security: []
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [otp_request_id, otp_code]
+              properties:
+                otp_request_id:
+                  type: string
+                  format: uuid
+                otp_code:
+                  type: string
+                  minLength: 6
+                  maxLength: 6
+                  pattern: "^[0-9]{6}$"
+      responses:
+        "200":
+          description: Authenticated patient session — sets Set-Cookie header (mhp_session)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  patient_id:
+                    type: string
+                    format: uuid
+                  profile_complete:
+                    type: boolean
+                  consent_complete:
+                    type: boolean
+                  intake_complete:
+                    type: boolean
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "422":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "429":
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── Auth — Staff ─────────────────────────────────────────────────────────
+  /auth/staff/login:
+    post:
+      summary: Staff email + password login (step 1 of 2)
+      operationId: staffLogin
+      security: []
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+      responses:
+        "200":
+          description: Password verified — TOTP required next
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totp_required:
+                    type: boolean
+                    example: true
+                  pre_auth_token:
+                    type: string
+                    description: Short-lived token for the TOTP step
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/staff/totp/setup:
+    post:
+      summary: Generate TOTP secret and QR code for enrollment (first login only)
+      operationId: staffTotpSetup
       tags: [Auth]
       responses:
         "200":
-          description: Authenticated patient session
+          description: TOTP setup data (shown once)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  qr_code_uri:
+                    type: string
+                    description: otpauth:// URI for authenticator apps
+                  backup_codes:
+                    type: array
+                    items:
+                      type: string
+                    description: 8 one-time backup codes — display once only
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/staff/totp/verify:
+    post:
+      summary: Verify TOTP code to complete login or enrollment
+      operationId: staffTotpVerify
+      security: []
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [pre_auth_token, totp_code]
+              properties:
+                pre_auth_token:
+                  type: string
+                totp_code:
+                  type: string
+                  minLength: 6
+                  maxLength: 6
+      responses:
+        "200":
+          description: Authenticated staff session
+        "401":
+          description: Invalid or expired TOTP code
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── Patient ───────────────────────────────────────────────────────────────
   /patients/me/profile:
     get:
       summary: Get patient profile
@@ -28,19 +250,99 @@ paths:
       responses:
         "200":
           description: Patient profile
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     put:
       summary: Update patient profile and notification numbers
       tags: [Patient]
       responses:
         "200":
           description: Updated patient profile
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /patients/me/care-history:
+    get:
+      summary: Get patient care history (appointments, recommendations, prescriptions)
+      operationId: getPatientCareHistory
+      tags: [Patient]
+      responses:
+        "200":
+          description: Care history
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── Consent ───────────────────────────────────────────────────────────────
   /patients/me/consent:
+    get:
+      summary: Get current consent status
+      operationId: getPatientConsent
+      tags: [Consent]
+      responses:
+        "200":
+          description: Consent record or null if not yet given
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     post:
       summary: Record patient consent before intake
       tags: [Consent]
       responses:
         "201":
           description: Consent recorded
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── Intake ────────────────────────────────────────────────────────────────
   /patients/me/intake/progress:
     get:
       summary: Get intake progress
@@ -48,6 +350,19 @@ paths:
       responses:
         "200":
           description: Intake progress
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /patients/me/intake/sections/{sectionId}/responses:
     put:
       summary: Save intake section responses
@@ -61,6 +376,19 @@ paths:
       responses:
         "200":
           description: Section saved
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /patients/me/intake/submit:
     post:
       summary: Submit completed intake
@@ -68,13 +396,82 @@ paths:
       responses:
         "200":
           description: Intake submitted
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── Matching ──────────────────────────────────────────────────────────────
   /matches:
     post:
       summary: Generate ranked psychiatrist matches
+      operationId: generateMatches
       tags: [Matching]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [intake_id]
+              properties:
+                intake_id:
+                  type: string
+                  format: uuid
       responses:
         "200":
           description: Ranked matches
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  matches:
+                    type: array
+                    maxItems: 5
+                    items:
+                      type: object
+                      properties:
+                        psychiatrist_id:
+                          type: string
+                          format: uuid
+                        score:
+                          type: number
+                        display_name:
+                          type: string
+                        languages:
+                          type: array
+                          items:
+                            type: string
+                        rating_percentile:
+                          type: integer
+                          nullable: true
+                        earliest_available_slot:
+                          type: string
+                          format: date-time
+                          nullable: true
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── Booking ───────────────────────────────────────────────────────────────
   /availability/{psychiatristId}:
     get:
       summary: List psychiatrist availability
@@ -88,13 +485,119 @@ paths:
       responses:
         "200":
           description: Available slots
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /bookings/checkout:
     post:
       summary: Hold a slot and create Razorpay checkout order
       tags: [Booking]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [psychiatrist_id, slot_id]
+              properties:
+                psychiatrist_id:
+                  type: string
+                  format: uuid
+                slot_id:
+                  type: string
+                  format: uuid
       responses:
         "201":
           description: Checkout created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  appointment_id:
+                    type: string
+                    format: uuid
+                  razorpay_order_id:
+                    type: string
+                  amount_paise:
+                    type: integer
+                  hold_expires_at:
+                    type: string
+                    format: date-time
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "409":
+          description: Slot conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "422":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /bookings/{appointmentId}:
+    get:
+      summary: Get booking details
+      operationId: getBooking
+      tags: [Booking]
+      parameters:
+        - name: appointmentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Booking details
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /bookings/{appointmentId}/cancel:
     post:
       summary: Cancel an appointment using configured refund rules
@@ -108,20 +611,140 @@ paths:
       responses:
         "200":
           description: Appointment cancelled
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /bookings/{appointmentId}/reschedule:
+    post:
+      summary: Reschedule appointment to a new slot
+      operationId: rescheduleBooking
+      tags: [Booking]
+      parameters:
+        - name: appointmentId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [new_slot_id]
+              properties:
+                new_slot_id:
+                  type: string
+                  format: uuid
+      responses:
+        "200":
+          description: Rescheduled
+        "400":
+          description: Cannot reschedule
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── Feedback ──────────────────────────────────────────────────────────────
+  /appointments/{appointmentId}/feedback:
+    post:
+      summary: Submit or skip session feedback
+      operationId: submitFeedback
+      tags: [Feedback]
+      parameters:
+        - name: appointmentId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action:
+                  type: string
+                  enum: [submit, skip]
+                rating:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                qualitative_answers:
+                  type: object
+      responses:
+        "200":
+          description: Feedback recorded
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── Webhooks ──────────────────────────────────────────────────────────────
   /webhooks/razorpay:
     post:
       summary: Receive Razorpay webhook
       tags: [Webhooks]
+      security: []
       responses:
         "202":
           description: Webhook accepted
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /webhooks/zoom:
     post:
       summary: Receive Zoom webhook
       tags: [Webhooks]
+      security: []
       responses:
         "202":
           description: Webhook accepted
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── Psychiatrist ──────────────────────────────────────────────────────────
   /psychiatrist/appointments:
     get:
       summary: List psychiatrist appointments
@@ -129,7 +752,46 @@ paths:
       responses:
         "200":
           description: Appointments
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── Clinical ──────────────────────────────────────────────────────────────
   /clinical/appointments/{appointmentId}/notes:
+    get:
+      summary: Get session notes for an appointment
+      operationId: getSessionNotes
+      tags: [Clinical]
+      parameters:
+        - name: appointmentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Session notes
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     put:
       summary: Save and approve session notes
       tags: [Clinical]
@@ -142,7 +804,45 @@ paths:
       responses:
         "200":
           description: Notes saved
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /clinical/appointments/{appointmentId}/prescriptions:
+    get:
+      summary: Get prescriptions for an appointment
+      operationId: getPrescriptions
+      tags: [Clinical]
+      parameters:
+        - name: appointmentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Prescriptions
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     post:
       summary: Create or finalise e-prescription
       tags: [Clinical]
@@ -155,6 +855,20 @@ paths:
       responses:
         "201":
           description: Prescription created
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── Notifications ─────────────────────────────────────────────────────────
   /patients/me/notifications/preferences:
     get:
       summary: Get notification preferences
@@ -162,12 +876,73 @@ paths:
       responses:
         "200":
           description: Notification preferences
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     put:
       summary: Update notification preferences and reschedule pending Tier 3 jobs
       tags: [Notifications]
       responses:
         "200":
           description: Preferences updated
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /patients/me/adherence:
+    post:
+      summary: Record medication adherence confirmation (WhatsApp quick-reply callback)
+      operationId: recordAdherence
+      tags: [Notifications]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [prescription_medication_id, status]
+              properties:
+                prescription_medication_id:
+                  type: string
+                  format: uuid
+                status:
+                  type: string
+                  enum: [confirmed, skipped]
+      responses:
+        "200":
+          description: Adherence recorded
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── Data Lifecycle ────────────────────────────────────────────────────────
   /patients/me/export:
     post:
       summary: Request patient data export
@@ -175,6 +950,19 @@ paths:
       responses:
         "202":
           description: Export requested
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /patients/me/deletion:
     post:
       summary: Request patient data deletion
@@ -182,6 +970,117 @@ paths:
       responses:
         "202":
           description: Deletion requested
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── Agency Admin ──────────────────────────────────────────────────────────
+  /agency/psychiatrists:
+    get:
+      summary: List psychiatrists for the authenticated agency
+      operationId: listAgencyPsychiatrists
+      tags: [Agency]
+      responses:
+        "200":
+          description: Psychiatrists
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      summary: Create psychiatrist account for the agency
+      operationId: createPsychiatrist
+      tags: [Agency]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        "201":
+          description: Psychiatrist created
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /agency/psychiatrists/{psychiatristId}/availability:
+    put:
+      summary: Set or update availability slots for a psychiatrist
+      operationId: setPsychiatristAvailability
+      tags: [Agency]
+      parameters:
+        - name: psychiatristId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                slots:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      session_type:
+                        type: string
+                        enum: [initial_assessment, follow_up, urgent_review]
+                      starts_at:
+                        type: string
+                        format: date-time
+      responses:
+        "200":
+          description: Availability updated
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── Platform Admin ────────────────────────────────────────────────────────
   /admin/configuration:
     get:
       summary: List platform configuration
@@ -189,17 +1088,89 @@ paths:
       responses:
         "200":
           description: Configuration values
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     put:
       summary: Update platform configuration
       tags: [Admin]
       responses:
         "200":
           description: Updated configuration
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /admin/audit-log:
+    get:
+      summary: Search audit log (PlatformAdmin only — no clinical data)
+      operationId: searchAuditLog
+      tags: [Admin]
+      parameters:
+        - name: actor_id_hash
+          in: query
+          schema:
+            type: string
+        - name: resource_type
+          in: query
+          schema:
+            type: string
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: Audit log entries
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        detail:
+          type: string
+        code:
+          type: string
+          description: Machine-readable error code
   securitySchemes:
     sessionCookie:
       type: apiKey
       in: cookie
       name: mhp_session
-security:
-  - sessionCookie: []

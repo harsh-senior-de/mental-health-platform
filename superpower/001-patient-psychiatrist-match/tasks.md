@@ -11,7 +11,7 @@
 - [ ] T001 Create backend directories under `apps/api/app`: `auth`, `intake`, `matching`, `booking`, `clinical`, `notifications`, `admin`, `data_lifecycle`, `audit`, `shared`
 - [ ] T002 Create backend `apps/api/pyproject.toml` with FastAPI, Pydantic v2, SQLAlchemy 2.0, Alembic, Celery, Redis client, boto3, pytest, ruff, and type checker config
 - [ ] T003 Create `docker-compose.yml` at repo root with services: `postgres` (postgres:16-alpine), `redis` (redis:7-alpine), `api` (FastAPI + Celery worker + beat combined for demo), `web` (Vite dev server); and production Dockerfiles for separate `api`, `worker`, and `beat` containers
-- [ ] T004 Create React/Vite frontend directory skeleton under `apps/web`
+- [ ] T004 Create React/Vite frontend directory skeleton under `apps/web` with `react-i18next` configured and `apps/web/src/i18n/en.json` + `hi.json` stubs; all user-visible strings must use translation keys from day one
 - [ ] T005 Create Terraform directory skeleton under `infra/terraform` for `staging` and `prod` environments and modules: `network`, `ecs`, `rds`, `elasticache`, `s3`, `kms`, `secrets`, `apprunner`, `observability`, `waf`, `cdn` — demo deploys via App Runner CLI, not Terraform
 - [ ] T006 Add local verification commands for backend: `pytest`, `ruff check`, `ruff format --check`, `mypy app`
 - [ ] T007 Add local verification commands for frontend and E2E placeholders
@@ -35,7 +35,9 @@
 - [ ] T018 Write failing tests for service-layer RBAC denying lateral PHI access
 - [ ] T019 Implement shared principal model and RBAC policy helpers
 - [ ] T020 Write failing Alembic migration tests for core identity, configuration, and audit tables
-- [ ] T021 Implement initial SQLAlchemy models and Alembic migration for `Patient`, `PatientProfile`, `StaffUser`, `Agency`, `PlatformConfiguration`, and `AuditLog`
+- [ ] T021 Implement initial SQLAlchemy models and Alembic migration for `Patient`, `PatientProfile`, `StaffUser`, `Agency`, `PlatformConfiguration`, and `AuditLog`; include composite indexes: `AuditLog(actor_id_hash, created_at)`, `AuditLog(resource_id_hash)`
+- [ ] T021a Write failing model tests for `OtpRecord` (fields: patient_id FK, otp_hash, issued_at, expires_at, invalidated_at nullable, used_at nullable) and `SessionToken` (user_id, user_type, token_hash, created_at, last_active_at, expires_at, revoked_at nullable)
+- [ ] T021b Implement `OtpRecord` and `SessionToken` SQLAlchemy models and Alembic migration
 - [ ] T022 Write failing tests for settings provider: `.env` loading (local), SSM Parameter Store (demo), and Secrets Manager (production) all returning the same typed config
 - [ ] T023 Implement `SettingsProvider` with `SETTINGS_BACKEND=env|ssm|secrets_manager` env var selecting the backend at runtime
 - [ ] T024 Write failing tests for `StoragePort`: local filesystem write/read/delete and signed-URL generation, and S3 upload/download/delete/presigned-URL — both via the same interface
@@ -49,6 +51,7 @@
 **Goal**: Patient can register/login with OTP, accept consent, complete and edit intake, and resume progress.
 **Independent Test**: A new user completes OTP, profile setup, consent, intake, and returns to a persisted active profile without booking dependencies.
 
+- [ ] T027a Set up i18n framework: `react-i18next` + translation key scaffolding for frontend; write a lint rule or test that fails on any hardcoded user-visible string; create `apps/web/src/i18n/` with `en.json` and `hi.json` stubs
 - [ ] T027 Write failing unit tests for OTP issue, invalidation of previous OTP, expiry, and lockout rules
 - [ ] T028 Implement patient OTP service with primary/backup SMS provider ports and audit logging without OTP values
 - [ ] T029 Write failing contract tests for `/api/v1/auth/patient/otp` and `/api/v1/auth/patient/otp/verify`
@@ -73,8 +76,10 @@
 **Independent Test**: Seed eligible psychiatrists and slots, run matching, hold a slot, simulate Razorpay success, create Zoom meeting, and confirm booking.
 
 - [ ] T042 Write failing model tests for `PsychiatristProfile`, `PsychiatristFee`, `AvailabilitySlot`, `Appointment`, `Payment`, and `ZoomMeeting`
-- [ ] T043 Implement booking and psychiatrist SQLAlchemy models and Alembic migration
+- [ ] T043 Implement booking and psychiatrist SQLAlchemy models and Alembic migration; include composite indexes: `AvailabilitySlot(psychiatrist_id, status, starts_at)`, `Appointment(patient_id, status)`, `Appointment(psychiatrist_id, status, starts_at)`
 - [ ] T044 Write failing tests for staff account activation, password policy, TOTP setup, and lockout
+- [ ] T044a Write failing contract tests for staff TOTP enrollment: `POST /api/v1/auth/staff/totp/setup` (returns QR code secret once), `POST /api/v1/auth/staff/totp/verify` (confirms first valid code, activates account); backup code generation and redemption
+- [ ] T044b Implement staff TOTP enrollment endpoints, QR code generation, backup code hashing, and account activation gate
 - [ ] T045 Implement staff auth service and API routes
 - [ ] T046 Write failing tests for AgencyAdmin-scoped psychiatrist creation and optional profile completion rules
 - [ ] T047 Implement agency, psychiatrist profile, fee, and availability management APIs
@@ -84,6 +89,8 @@
 - [ ] T051 Implement matching service and `/api/v1/matches` API
 - [ ] T052 Write failing integration tests for slot hold, hold expiry, duplicate submit idempotency, and concurrent availability conflict
 - [ ] T053 Implement slot hold and booking checkout service
+- [ ] T052a Write failing tests for Razorpay webhook HMAC-SHA256 signature verification middleware: reject missing header (400), reject tampered payload (400), accept valid signature; test that rejection is logged to audit log without payload body
+- [ ] T052b Implement Razorpay webhook signature verification FastAPI dependency; wire into `POST /webhooks/razorpay` route
 - [ ] T054 Write failing integration tests for Razorpay signed browser callback, webhook backup, and 15-minute reconciliation Celery task
 - [ ] T055 Implement Razorpay provider port, payment confirmation, and reconciliation worker
 - [ ] T056 Write failing integration tests for Zoom meeting creation retry and refund-on-failure behavior
@@ -101,6 +108,8 @@
 
 - [ ] T061 Write failing model tests for `SessionTranscript`, `CareRecommendation`, `Prescription`, `PrescriptionMedication`, and `SessionFeedback`
 - [ ] T062 Implement clinical SQLAlchemy models and Alembic migration
+- [ ] T062a Write failing tests for Zoom webhook signature verification: reject missing header (400), reject stale timestamp >5 minutes (400), accept valid `X-Zoom-Signature` + timestamp pair; test URL validation challenge response
+- [ ] T062b Implement Zoom webhook signature verification FastAPI dependency; wire into `POST /webhooks/zoom` route
 - [ ] T063 Write failing tests for Zoom transcript webhook ownership, no-transcript fallback, and raw transcript access restrictions
 - [ ] T064 Implement transcript ingestion and manual recommendation fallback
 - [ ] T065 Write failing tests for Form B-1 required fields, consent checkbox, identity verification checkbox, and approval gate
@@ -123,7 +132,7 @@
 **Independent Test**: Seed a patient with approved recommendations and preferences, execute Celery notification jobs, update preferences, confirm adherence, and run lifecycle jobs.
 
 - [ ] T076 Write failing model tests for `NotificationPreference`, `NotificationJob`, `AdherenceConfirmation`, and `DataLifecycleJob`
-- [ ] T077 Implement notification and lifecycle SQLAlchemy models and Alembic migration
+- [ ] T077 Implement notification and lifecycle SQLAlchemy models and Alembic migration; include composite index: `NotificationJob(scheduled_for, status)`
 - [ ] T078 Write failing tests for Tier 1, Tier 2, and Tier 3 channel rules and daily cap enforcement
 - [ ] T079 Implement notification service and WhatsApp/SMS provider ports
 - [ ] T080 Write failing tests for preference updates cancelling and rescheduling pending Tier 3 Celery jobs, including same-day reminders
@@ -150,7 +159,9 @@
 
 ### Demo Validation
 
-- [ ] T095 Create `scripts/demo.sh` that starts Docker Compose and opens an ngrok tunnel; set up Cloudflare R2 bucket for file storage in demos; document ngrok paid ($8/month) as the stable-subdomain option; document App Runner path for 24/7 unattended access
+- [ ] T095 Create `scripts/demo.sh` that starts Docker Compose and opens an ngrok tunnel; document ngrok free tier vs paid ($8/month) stable subdomain; verify the full demo flow works through the tunnel on a mobile browser
+- [ ] T095b Create `scripts/deploy-demo.sh`: `aws apprunner update-service` (or `create-service` on first run) using the ECR image tag; document required AWS CLI env vars and IAM permissions; test the script against the App Runner 24/7 demo path
+- [ ] T095c Set up Cloudflare R2 bucket for demo file storage: create bucket with `--location-hint apac`, configure CORS for the ngrok/App Runner domain, set `STORAGE_BACKEND=s3` + `STORAGE_S3_ENDPOINT_URL` env vars, verify prescription PDF upload and download through the bucket
 - [ ] T096 Run full demo smoke test via ngrok: health check, OTP flow, matching, booking, prescription PDF download from R2; confirm the entire flow works on a mobile browser through the tunnel
 
 ### Production AWS Infrastructure
@@ -208,3 +219,5 @@
 - Fake providers required for local and CI tests; real provider calls are demo/staging/production only.
 - `StoragePort` is the only path to write or read files — no direct boto3 or filesystem calls outside `shared/storage`.
 - `SettingsProvider` is the only path to read secrets — no direct SSM or Secrets Manager calls outside `shared/settings`.
+- `OtpRecord` stores only OTP hashes — never plaintext OTP values anywhere in the system.
+- Webhook endpoints (`/webhooks/razorpay`, `/webhooks/zoom`) must verify provider signatures before processing any payload.
