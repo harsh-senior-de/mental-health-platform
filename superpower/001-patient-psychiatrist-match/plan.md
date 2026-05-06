@@ -5,27 +5,31 @@
 
 ## Summary
 
-Build a web-based telepsychiatry platform for India where patients authenticate by SMS OTP, provide explicit DPDPA consent, complete a structured intake questionnaire, receive ranked psychiatrist matches across agencies, book Zoom sessions through Razorpay, and receive psychiatrist-approved long-term care follow-ups over WhatsApp. The approved architecture is a Python/FastAPI modular monolith deployed to AWS ECS Fargate, backed by RDS PostgreSQL Multi-AZ, ElastiCache Redis for Celery jobs, S3 for generated artifacts, CloudFront/WAF at the edge, and Terraform-managed infrastructure.
+Build a web-based telepsychiatry platform for India where patients authenticate by SMS OTP, provide explicit DPDPA consent, complete a structured intake questionnaire, receive ranked psychiatrist matches across agencies, book Zoom sessions through Razorpay, and receive psychiatrist-approved long-term care follow-ups over WhatsApp.
+
+**Deployment strategy**: demo-first, then production. All config is environment-variable driven so the same Docker image runs locally (free), on the cloud demo (~$20–35/month), and on the full production stack with zero code changes. See the Demo vs Production Infrastructure section below.
 
 ## Approved Architecture Decisions
 
-| Area | Decision |
-|---|---|
-| Backend | Python 3.12+ with FastAPI |
-| Frontend | React + Vite authenticated SPA |
-| API style | REST, versioned under `/api/v1` |
-| Service shape | Modular monolith with strict internal service boundaries |
-| Database | Amazon RDS PostgreSQL Multi-AZ |
-| ORM/migrations | SQLAlchemy 2.0 + Alembic |
-| Async jobs | Celery workers + Celery beat backed by Amazon ElastiCache Redis |
-| File/object storage | Amazon S3 with KMS encryption |
-| Hosting | AWS ECS Fargate behind Application Load Balancer |
-| Edge | CloudFront + AWS WAF |
-| Secrets | AWS Secrets Manager |
-| Encryption | AWS KMS for application and storage keys |
-| Observability | CloudWatch logs/metrics/alarms with strict PHI/PII redaction |
-| Infrastructure as Code | Terraform |
-| CI/CD | GitHub Actions → ECR image build → ECS deploy |
+| Area | Demo (free → ~$35/month) | Production (500–5,000 users) |
+|---|---|---|
+| Backend | Python 3.12+ / FastAPI | Same |
+| Frontend | React + Vite | Same |
+| API style | REST, versioned `/api/v1` | Same |
+| Service shape | Modular monolith | Same |
+| Hosting | AWS App Runner (scales to zero) | ECS Fargate + ALB |
+| Database | Neon free tier or RDS t3.micro single-AZ | RDS PostgreSQL Multi-AZ |
+| ORM/migrations | SQLAlchemy 2.0 + Alembic | Same |
+| Async jobs | Celery + Upstash Redis (free tier) | Celery + ElastiCache Redis |
+| File storage | `LocalStorageAdapter` (dev) / S3 + SSE-S3 (demo) | S3 + KMS |
+| Secrets | `.env` (dev) / SSM Parameter Store free tier (demo) | AWS Secrets Manager |
+| Encryption | SSE-S3 (free) | AWS KMS |
+| Edge | None | CloudFront + AWS WAF |
+| Observability | Structured stdout logs | CloudWatch logs/metrics/alarms |
+| Infrastructure as Code | Docker Compose + App Runner CLI | Terraform |
+| CI/CD | GitHub Actions → Docker build | GitHub Actions → ECR → ECS |
+
+**Promotion rule**: every component swap is an environment variable or Terraform module change. Application code never changes between demo and production.
 
 ## Technical Context
 
@@ -58,17 +62,24 @@ Build a web-based telepsychiatry platform for India where patients authenticate 
 ### Documentation (this feature)
 
 ```text
-specs/001-patient-psychiatrist-match/
+specs/001-patient-psychiatrist-match/        ← WHAT to build
+├── spec.md
+├── actor-flows.md
+├── competitive-edge.md
+├── research/
+│   └── psychiatry-sessions-india.md
+└── checklists/
+    ├── requirements.md
+    └── gaps.md
+
+superpower/001-patient-psychiatrist-match/   ← HOW to build it
 ├── plan.md
 ├── research.md
 ├── data-model.md
 ├── quickstart.md
-├── contracts/
-│   └── openapi.yaml
 ├── tasks.md
-├── actor-flows.md
-├── competitive-edge.md
-└── spec.md
+└── contracts/
+    └── openapi.yaml
 ```
 
 ### Source Code (repository root)
@@ -121,7 +132,25 @@ infra/
 
 **Structure Decision**: Use one repository with separate backend, frontend, and infrastructure directories. Backend modules match the service boundaries in `docs/ARCHITECTURE.md`; routers only validate DTOs and call service-layer methods. Database access goes through SQLAlchemy repositories/services, never from route handlers.
 
-## AWS Runtime Topology
+## Demo Runtime Topology (~$0 locally / ~$20–35/month cloud)
+
+```text
+Docker Compose (local dev — free)
+  postgres:16-alpine
+  redis:7-alpine
+  api container (FastAPI + Celery worker + beat combined)
+  LocalStorageAdapter → ./storage/
+  .env file for secrets
+
+AWS App Runner (cloud demo — ~$5–15/month active, $0 idle)
+  App Runner service (same Docker image)
+  Neon free tier PostgreSQL  OR  RDS t3.micro single-AZ (~$15/month)
+  Upstash Redis free tier (10k commands/day)
+  S3 bucket with SSE-S3 (free encryption)
+  SSM Parameter Store standard parameters (free)
+```
+
+## Production Runtime Topology (ECS Fargate, Terraform-managed)
 
 ```text
 CloudFront + AWS WAF
@@ -135,10 +164,21 @@ ECS Fargate
         |
 RDS PostgreSQL Multi-AZ
 ElastiCache Redis
-S3 encrypted buckets
-Secrets Manager + KMS
+S3 + KMS encrypted buckets
+Secrets Manager
 CloudWatch Logs/Metrics/Alarms
 ```
+
+**Promotion checklist** (no code changes — config only):
+
+| Demo component | Production swap | How |
+|---|---|---|
+| App Runner | ECS Fargate + ALB | Terraform module |
+| Neon / RDS single-AZ | RDS Multi-AZ | One Terraform variable |
+| Upstash Redis | ElastiCache | Change `CELERY_BROKER_URL` |
+| S3 + SSE-S3 | S3 + KMS | One Terraform line |
+| SSM Parameter Store | Secrets Manager | `SETTINGS_BACKEND=secrets_manager` |
+| None | CloudFront + WAF | Terraform modules |
 
 ## Phase 0 Research Output
 
@@ -181,5 +221,6 @@ Design highlights:
 
 | Violation | Why Needed | Simpler Alternative Rejected Because |
 |-----------|------------|-------------------------------------|
-| ElastiCache Redis in addition to PostgreSQL | Asynchronous notifications, payment reconciliation, Zoom transcript handling, deletion jobs, and delayed nudges require retries and scheduling | PostgreSQL-only polling would increase reliability risk and operational complexity |
+| Redis (Upstash/ElastiCache) in addition to PostgreSQL | Asynchronous notifications, payment reconciliation, Zoom transcript handling, deletion jobs, and delayed nudges require retries and scheduling | PostgreSQL-only polling would increase reliability risk and operational complexity |
 | React frontend in addition to Python backend | Patient intake, booking, psychiatrist notes, admin dashboards, and notification settings need rich authenticated workflows | Server-rendered templates would slow UI iteration and make complex form states harder to test |
+| StoragePort abstraction (LocalStorageAdapter + S3StorageAdapter) | Demo must run without AWS credentials; production must use S3; tests must not hit real S3 | Calling boto3 directly would couple all environments to AWS and break local dev and CI |

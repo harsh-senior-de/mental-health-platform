@@ -5,7 +5,8 @@
 - Python 3.12+
 - Node.js 22 LTS for the React/Vite frontend
 - Docker with Compose for local PostgreSQL and Redis
-- Terraform for AWS infrastructure
+- AWS CLI (for demo deployment to App Runner)
+- Terraform (for production infrastructure only — not needed for demo)
 
 ## Backend Setup
 
@@ -29,7 +30,19 @@ npm run dev
 ## Local Services
 
 ```bash
+# All services (PostgreSQL + Redis + API + Celery worker/beat + Web dev server)
+docker compose up
+
+# Backing services only (if running api/web processes manually)
 docker compose up postgres redis
+```
+
+Copy `.env.example` to `.env` and fill in fake provider credentials for local dev. Set:
+```
+STORAGE_BACKEND=local
+SETTINGS_BACKEND=env
+CELERY_BROKER_URL=redis://localhost:6379/0
+DATABASE_URL=postgresql://mhp:mhp_dev_password@localhost:5432/mhp_dev
 ```
 
 ## Backend Verification
@@ -54,11 +67,33 @@ npm run typecheck
 ## Infrastructure Verification
 
 ```bash
-cd infra/terraform/environments/dev
+# Production Terraform (staging/prod only — not needed for demo)
+cd infra/terraform/environments/staging
 terraform fmt -check
 terraform validate
 terraform plan
 ```
+
+## Cloud Demo Deployment (App Runner)
+
+**One-time setup** — create a free Neon database and Upstash Redis instance, then set:
+```
+DATABASE_URL=postgresql://...neon.tech/...
+CELERY_BROKER_URL=rediss://...upstash.io:6379
+STORAGE_BACKEND=s3
+STORAGE_S3_BUCKET=mhp-demo
+SETTINGS_BACKEND=ssm
+```
+
+**Deploy**:
+```bash
+# Build and push image, create/update App Runner service
+bash scripts/deploy-demo.sh
+```
+
+App Runner provides HTTPS automatically. No ALB, no CloudFront, no Terraform needed.
+
+**Promote to production**: change `apprunner` → `ecs` Terraform module, point to RDS Multi-AZ and ElastiCache. Same Docker image, no code changes.
 
 ## TDD Workflow
 
@@ -78,6 +113,7 @@ External providers use fake adapters by default:
 - WhatsApp: fake template sender with quick-reply callback simulation.
 - Razorpay: fake signed browser callback, webhook replay, and reconciliation fixture.
 - Zoom: fake meeting creation, participant webhook, and transcript webhook.
-- AWS: local fakes for S3/Secrets where practical; integration tests use dependency-injected adapters.
+- Storage: `LocalStorageAdapter` writes to `./storage/` — no AWS credentials needed locally.
+- Secrets: `SETTINGS_BACKEND=env` reads from `.env` — no SSM or Secrets Manager needed locally.
 
 Real provider credentials are required only in staging and production.
