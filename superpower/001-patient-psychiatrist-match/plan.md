@@ -1,6 +1,6 @@
 # Implementation Plan: Patient Intake, Psychiatrist Matching & Personalized Care
 
-**Branch**: `001-patient-psychiatrist-match` | **Date**: 2026-05-06 | **Spec**: [spec.md](./spec.md)
+**Branch**: `001-patient-psychiatrist-match` | **Date**: 2026-05-06 | **Spec**: [spec.md](../../specs/001-patient-psychiatrist-match/spec.md)
 **Input**: Feature specification from `specs/001-patient-psychiatrist-match/spec.md`
 
 ## Summary

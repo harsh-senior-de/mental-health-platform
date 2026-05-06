@@ -1,6 +1,6 @@
 # Tasks: Patient Intake, Psychiatrist Matching & Personalized Care
 
-**Input**: [plan.md](./plan.md), [spec.md](./spec.md), [data-model.md](./data-model.md), [contracts/openapi.yaml](./contracts/openapi.yaml)
+**Input**: [plan.md](./plan.md), [spec.md](../../specs/001-patient-psychiatrist-match/spec.md), [data-model.md](./data-model.md), [contracts/openapi.yaml](./contracts/openapi.yaml)
 **Architecture**: Python/FastAPI modular monolith, React/Vite frontend, AWS ECS Fargate, RDS PostgreSQL Multi-AZ, ElastiCache Redis, S3, Secrets Manager, KMS, Terraform
 **Method**: Superpowers TDD workflow. For every behavior task, write the failing test first, run it, implement the minimum code, run it again, refactor, then request review at checkpoints.
 

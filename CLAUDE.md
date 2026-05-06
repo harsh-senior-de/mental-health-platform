@@ -35,16 +35,23 @@ something is unclear, run `/speckit-clarify` before proceeding.
 | File | Purpose |
 |------|---------|
 | `.specify/memory/constitution.md` | Project constitution v1.1.0 — non-negotiable principles |
-| `specs/001-patient-psychiatrist-match/spec.md` | Active feature spec (fully clarified, ready for planning) |
+| `specs/001-patient-psychiatrist-match/spec.md` | Active feature spec — fully clarified, source of truth for WHAT to build |
+| `specs/001-patient-psychiatrist-match/actor-flows.md` | User journeys and role-scoped flows |
 | `specs/001-patient-psychiatrist-match/checklists/requirements.md` | Spec quality checklist — all items passing |
-| `.specify/feature.json` | Active feature directory pointer used by all speckit commands |
-| `.specify/extensions.yml` | Hook configuration for git auto-commit between workflow steps |
+| `superpower/001-patient-psychiatrist-match/plan.md` | Implementation plan — architecture decisions and delivery strategy |
+| `superpower/001-patient-psychiatrist-match/tasks.md` | **Active task list — T001–T108, pick next unchecked task here** |
+| `superpower/001-patient-psychiatrist-match/data-model.md` | SQLAlchemy entity definitions and relationships |
+| `superpower/001-patient-psychiatrist-match/contracts/openapi.yaml` | REST API contract skeleton |
+| `superpower/001-patient-psychiatrist-match/quickstart.md` | Local dev setup and verification commands |
+| `superpower/001-patient-psychiatrist-match/research.md` | Tech stack decision rationale |
 
 ## Current Status
 
 - Constitution: v1.1.0 — ratified
-- Feature spec `001-patient-psychiatrist-match`: fully clarified across 5 sessions (25 questions answered)
-- Next step: `/speckit-plan`
+- Feature spec `001-patient-psychiatrist-match`: fully clarified (25 questions across 5 sessions)
+- Plan: complete — Python/FastAPI + AWS ECS Fargate + Terraform
+- Tasks: T001–T108 defined, **none started — next task is T001**
+- Implementation workflow: Superpowers TDD (failing test → implement → pass → review gate)
 
 ## Non-Negotiable Principles (summary — full detail in constitution.md)
 
@@ -68,11 +75,38 @@ something is unclear, run `/speckit-clarify` before proceeding.
 
 ## Architecture Constraints
 
-- Backend: modular service-oriented architecture; one responsibility per service
-- APIs: REST, versioned (`/api/v1/...`); no silent breaking changes
-- Async workflows: event-driven (notifications, data lifecycle, reconciliation jobs)
-- Database: PostgreSQL primary; no unstructured JSON columns without written justification
-- No service-to-service communication via shared DB tables or direct function calls
+- Backend: Python 3.12+ / FastAPI modular monolith; routers validate DTOs only, all logic in service layer
+- APIs: REST, versioned `/api/v1/...`; no silent breaking changes
+- ORM: SQLAlchemy 2.0 + Alembic migrations; no raw SQL in service or route files
+- Async jobs: Celery + ElastiCache Redis (reminders, reconciliation, export, deletion)
+- Database: RDS PostgreSQL Multi-AZ; no unstructured JSON columns without written justification
+- Storage: S3 + KMS for prescription PDFs and export packages
+- Infrastructure: AWS ECS Fargate + ALB + CloudFront/WAF, managed via Terraform
+- No route handler may access the database directly — repositories/services only
+
+## Tech Stack & Verification Commands
+
+```bash
+# Backend
+cd apps/api
+pytest                          # unit + integration tests
+ruff check .                    # lint
+ruff format --check .           # format check
+mypy app                        # type check
+
+# Frontend
+cd apps/web
+npm run test
+npm run lint
+npm run typecheck
+
+# Local services
+docker compose up postgres redis
+
+# Infrastructure
+cd infra/terraform/environments/dev
+terraform validate && terraform plan
+```
 
 ## User Roles
 
@@ -83,11 +117,4 @@ something is unclear, run `/speckit-clarify` before proceeding.
 | AgencyAdmin | Email + password + TOTP (mandatory) | Psychiatrist profiles and availability; no clinical data |
 | PlatformAdmin | Email + password + TOTP (mandatory) | Ops dashboards and account actions; zero clinical data |
 
-## Tech Stack & Commands
-
-_To be filled in after `/speckit-plan` completes._
-
-<!-- SPECKIT START -->
-For additional context about technologies to be used, project structure,
-shell commands, and other important information, read the current plan
-<!-- SPECKIT END -->
+For full project structure, AWS topology, and delivery strategy see `superpower/001-patient-psychiatrist-match/plan.md`.

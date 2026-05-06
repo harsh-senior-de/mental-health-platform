@@ -1,4 +1,3 @@
-<!-- generated-by: gsd-doc-writer -->
 # Mental Health Platform — India
 
 A web-based telepsychiatry platform for India where patients complete a mental health intake questionnaire, get matched to a licensed psychiatrist, book Zoom video sessions, and receive personalised long-term care via WhatsApp.
@@ -14,17 +13,52 @@ Target market: India. Regulatory framework: Mental Healthcare Act 2017 + DPDPA 2
 
 ## Project Status
 
-This project is in the **specification phase**. No application code exists yet.
+This project is in the **implementation phase**. Spec, plan, and task breakdown are complete.
 
 | Phase | Status |
 |-------|--------|
 | Constitution | v1.1.0 — ratified |
-| Feature spec `001-patient-psychiatrist-match` | Fully clarified — ready for planning |
-| Plan | Not started — next step |
-| Tasks | Not started |
+| Feature spec `001-patient-psychiatrist-match` | Fully clarified (25 questions across 5 sessions) |
+| Plan | Complete — Python/FastAPI + AWS ECS Fargate + Terraform |
+| Tasks | T001–T108 defined — **T001 is next** |
 | Implementation | Not started |
 
-The active feature spec covers: patient onboarding, intake questionnaire, psychiatrist matching, appointment booking (Razorpay payments, Zoom integration), session notes, e-prescriptions, WhatsApp notifications, and the psychiatrist/agency/platform admin portals.
+The active feature covers: patient onboarding, OTP auth, intake questionnaire, psychiatrist matching, appointment booking (Razorpay + Zoom), clinical records, e-prescriptions, WhatsApp notifications, and psychiatrist/agency/platform admin portals.
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Backend | Python 3.12+ / FastAPI |
+| Frontend | React + Vite |
+| ORM / Migrations | SQLAlchemy 2.0 + Alembic |
+| Async jobs | Celery + ElastiCache Redis |
+| Database | RDS PostgreSQL Multi-AZ |
+| File storage | S3 + KMS |
+| Hosting | AWS ECS Fargate + ALB |
+| Edge | CloudFront + AWS WAF |
+| Infrastructure | Terraform |
+| Testing | pytest, Playwright |
+
+## Local Setup
+
+```bash
+# Start local services
+docker compose up postgres redis
+
+# Backend
+cd apps/api
+python -m venv .venv && source .venv/bin/activate
+pip install -e ".[dev]"
+alembic upgrade head
+uvicorn app.main:app --reload
+
+# Frontend
+cd apps/web
+npm install && npm run dev
+```
+
+See `superpower/001-patient-psychiatrist-match/quickstart.md` for full setup and TDD workflow.
 
 ## Development Workflow
 
@@ -34,14 +68,7 @@ Every feature follows this pipeline in order. No step may be skipped:
 Constitution → Spec → Plan → Tasks → Implementation
 ```
 
-| Command | Purpose |
-|---------|---------|
-| `/speckit-constitution` | Define or amend non-negotiable project principles |
-| `/speckit-specify` | Write the feature specification |
-| `/speckit-clarify` | Resolve ambiguities before planning |
-| `/speckit-plan` | Architecture and implementation plan |
-| `/speckit-tasks` | Break the plan into atomic dev tasks |
-| `/speckit-implement` | Implement a specific task |
+Implementation uses the **Superpowers TDD workflow**: write the failing test first, confirm the failure, implement the minimum code, confirm it passes, then request a code review at each story checkpoint.
 
 No code is written without a corresponding spec and plan. See `CLAUDE.md` for full runtime guidance.
 
@@ -77,12 +104,15 @@ See `.specify/memory/constitution.md` for the full project constitution (v1.1.0)
 
 | File | Purpose |
 |------|---------|
-| `CLAUDE.md` | Runtime development guidance for Claude Code |
+| `CLAUDE.md` | Runtime guidance for Claude Code — start here |
 | `.specify/memory/constitution.md` | Project constitution v1.1.0 — non-negotiable principles |
-| `specs/001-patient-psychiatrist-match/spec.md` | Active feature spec — fully clarified, ready for planning |
-| `specs/001-patient-psychiatrist-match/actor-flows.md` | Actor-level flow diagrams |
-| `specs/001-patient-psychiatrist-match/competitive-edge.md` | Product differentiation analysis vs. Practo, Lybrate, MFine, and others |
-| `.specify/feature.json` | Active feature directory pointer |
+| `specs/001-patient-psychiatrist-match/spec.md` | Feature spec — source of truth for WHAT to build |
+| `specs/001-patient-psychiatrist-match/actor-flows.md` | User journeys and role-scoped flows |
+| `superpower/001-patient-psychiatrist-match/plan.md` | Implementation plan — architecture and delivery strategy |
+| `superpower/001-patient-psychiatrist-match/tasks.md` | Active task list — T001–T108 |
+| `superpower/001-patient-psychiatrist-match/data-model.md` | SQLAlchemy entity definitions |
+| `superpower/001-patient-psychiatrist-match/contracts/openapi.yaml` | REST API contract |
+| `superpower/001-patient-psychiatrist-match/quickstart.md` | Dev setup and verification commands |
 
 ## Scale Target
 
