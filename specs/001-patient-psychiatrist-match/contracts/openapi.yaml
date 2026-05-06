@@ -1,0 +1,205 @@
+openapi: 3.1.0
+info:
+  title: Mental Health Platform API
+  version: 0.1.0
+servers:
+  - url: /api/v1
+paths:
+  /auth/patient/otp:
+    post:
+      summary: Request patient OTP
+      operationId: requestPatientOtp
+      tags: [Auth]
+      responses:
+        "202":
+          description: OTP request accepted
+  /auth/patient/otp/verify:
+    post:
+      summary: Verify patient OTP
+      operationId: verifyPatientOtp
+      tags: [Auth]
+      responses:
+        "200":
+          description: Authenticated patient session
+  /patients/me/profile:
+    get:
+      summary: Get patient profile
+      tags: [Patient]
+      responses:
+        "200":
+          description: Patient profile
+    put:
+      summary: Update patient profile and notification numbers
+      tags: [Patient]
+      responses:
+        "200":
+          description: Updated patient profile
+  /patients/me/consent:
+    post:
+      summary: Record patient consent before intake
+      tags: [Consent]
+      responses:
+        "201":
+          description: Consent recorded
+  /patients/me/intake/progress:
+    get:
+      summary: Get intake progress
+      tags: [Intake]
+      responses:
+        "200":
+          description: Intake progress
+  /patients/me/intake/sections/{sectionId}/responses:
+    put:
+      summary: Save intake section responses
+      tags: [Intake]
+      parameters:
+        - name: sectionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Section saved
+  /patients/me/intake/submit:
+    post:
+      summary: Submit completed intake
+      tags: [Intake]
+      responses:
+        "200":
+          description: Intake submitted
+  /matches:
+    post:
+      summary: Generate ranked psychiatrist matches
+      tags: [Matching]
+      responses:
+        "200":
+          description: Ranked matches
+  /availability/{psychiatristId}:
+    get:
+      summary: List psychiatrist availability
+      tags: [Booking]
+      parameters:
+        - name: psychiatristId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Available slots
+  /bookings/checkout:
+    post:
+      summary: Hold a slot and create Razorpay checkout order
+      tags: [Booking]
+      responses:
+        "201":
+          description: Checkout created
+  /bookings/{appointmentId}/cancel:
+    post:
+      summary: Cancel an appointment using configured refund rules
+      tags: [Booking]
+      parameters:
+        - name: appointmentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Appointment cancelled
+  /webhooks/razorpay:
+    post:
+      summary: Receive Razorpay webhook
+      tags: [Webhooks]
+      responses:
+        "202":
+          description: Webhook accepted
+  /webhooks/zoom:
+    post:
+      summary: Receive Zoom webhook
+      tags: [Webhooks]
+      responses:
+        "202":
+          description: Webhook accepted
+  /psychiatrist/appointments:
+    get:
+      summary: List psychiatrist appointments
+      tags: [Psychiatrist]
+      responses:
+        "200":
+          description: Appointments
+  /clinical/appointments/{appointmentId}/notes:
+    put:
+      summary: Save and approve session notes
+      tags: [Clinical]
+      parameters:
+        - name: appointmentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Notes saved
+  /clinical/appointments/{appointmentId}/prescriptions:
+    post:
+      summary: Create or finalise e-prescription
+      tags: [Clinical]
+      parameters:
+        - name: appointmentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "201":
+          description: Prescription created
+  /patients/me/notifications/preferences:
+    get:
+      summary: Get notification preferences
+      tags: [Notifications]
+      responses:
+        "200":
+          description: Notification preferences
+    put:
+      summary: Update notification preferences and reschedule pending Tier 3 jobs
+      tags: [Notifications]
+      responses:
+        "200":
+          description: Preferences updated
+  /patients/me/export:
+    post:
+      summary: Request patient data export
+      tags: [DataLifecycle]
+      responses:
+        "202":
+          description: Export requested
+  /patients/me/deletion:
+    post:
+      summary: Request patient data deletion
+      tags: [DataLifecycle]
+      responses:
+        "202":
+          description: Deletion requested
+  /admin/configuration:
+    get:
+      summary: List platform configuration
+      tags: [Admin]
+      responses:
+        "200":
+          description: Configuration values
+    put:
+      summary: Update platform configuration
+      tags: [Admin]
+      responses:
+        "200":
+          description: Updated configuration
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: mhp_session
+security:
+  - sessionCookie: []
